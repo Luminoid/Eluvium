@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "schemaMinor": 2,
+  "packVersion": "2026.08.29-kaya.1",
+  "sources": [
+    {
+      "id": "kaya.climb",
+      "title": "KAYA",
+      "kind": "climb",
+      "match": { "host": ["kayaclimb.com"], "path": ["/share/climb", "/climb/:slug"], "priority": 100 },
+      "fetch": { "mode": "dom", "ua": "desktopSafari", "settle": { "signals": ["h1"] } },
+      "fields": [
+        { "name": "externalId", "candidates": [
+          { "from": { "urlQuery": "climb_id" } },
+          { "from": { "urlRegex": "/climb/[A-Za-z0-9-]*?([0-9]+)$" } }
+        ]},
+        { "name": "title", "candidates": [{ "from": { "textRegex": "<h1>([^<]+)</h1>" }, "pipe": ["decodeEntities", "collapseWhitespace", "trim"] }] },
+        { "name": "gym", "candidates": [{ "from": { "textRegex": "/gym/[^\"]*\">([^<]+)</a>" }, "pipe": ["decodeEntities", "trim"] }] },
+        { "name": "grade", "candidates": [{ "from": { "textRegex": "<h1>[^<]*?\\b([Vv][0-9]+|5\\.[0-9]+[a-d]?)\\b" } }] },
+        { "name": "image", "candidates": [{ "from": { "textRegex": "<img src=\"(https://assets\\.plastick\\.rocks/[^\"]+)\"" }, "pipe": ["decodeEntities"], "as": "image" }] }
+      ],
+      "examples": [
+        { "input": "https://app.kayaclimb.com/share/climb?climb_id=2148326", "expect": { "kind": "climb", "nonEmpty": ["title", "gym"] } },
+        { "input": "https://app.kayaclimb.com/share/climb?climb_id=2062530", "expect": { "kind": "climb", "nonEmpty": ["title", "gym"] } },
+        { "input": "https://kaya-app.kayaclimb.com/climb/Movement-Sunnyvale-510d-17725364", "expect": { "kind": "climb", "nonEmpty": ["title", "gym"] } }
+      ]
+    }
+  ]
+}

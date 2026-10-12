@@ -1,0 +1,18 @@
+/* EluviumUI's own copy (ELVCardStrings). Keys carry the format specifiers
+   String(localized:) generates from the interpolations: %@ for a String,
+   %lld for an Int. */
+
+/* Record card meta line: the source id that produced the record. */
+"card.meta.source %@" = "source: %@";
+
+/* Record card meta line: the record's kind. */
+"card.meta.kind %@" = "kind: %@";
+
+/* Record card meta line: the record's external id. */
+"card.meta.id %@" = "id: %@";
+
+/* Record card line listing the record's identities as namespace=value pairs. */
+"card.identities %@" = "identities: %@";
+
+/* A collection line: the collection's name, then its item count. */
+"card.collection.summary %@ %@" = "%1$@: %2$@";

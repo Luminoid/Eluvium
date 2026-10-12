@@ -1,0 +1,511 @@
+{
+  "packVersion" : "2026.10.10-commerce.optin",
+  "schemaMinor" : 3,
+  "schemaVersion" : 1,
+  "sources" : [
+    {
+      "examples" : [
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.chewy.com/hills-prescription-diet-id-digestive/dp/54681"
+        },
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.chewy.com/kong-classic-dog-toy/dp/38484"
+        },
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.chewy.com/greenies-teenie-dental-dog-treats/dp/32720"
+        },
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.chewy.com/purina-pro-plan-adult-sensitive-skin/dp/767806"
+        },
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.chewy.com/frisco-multi-cat-unscented-clumping/dp/131280"
+        }
+      ],
+      "fetch" : {
+        "mode" : "composite",
+        "steps" : [
+          {
+            "mode" : "http",
+            "ua" : "mobileSafari"
+          },
+          {
+            "mode" : "dom",
+            "settle" : {
+              "signals" : [
+                "jsonld",
+                "og:title"
+              ]
+            },
+            "ua" : "desktopSafari",
+            "when" : "blockedOrThin"
+          }
+        ]
+      },
+      "fields" : [
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "urlParam" : "id"
+              }
+            }
+          ],
+          "name" : "externalId"
+        },
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "native" : "jsonld.bestPlaceNode@1"
+              },
+              "select" : "name"
+            },
+            {
+              "from" : {
+                "meta" : "og:title"
+              },
+              "pipe" : [
+                {
+                  "stripSuffix" : " | Chewy.com"
+                }
+              ]
+            },
+            {
+              "from" : {
+                "textRegex" : "<title[^>]*>([\\s\\S]*?)</title>"
+              },
+              "pipe" : [
+                "decodeEntities",
+                "collapseWhitespace",
+                "trim"
+              ]
+            }
+          ],
+          "name" : "title"
+        },
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "native" : "jsonld.bestPlaceNode@1"
+              },
+              "select" : "brand"
+            }
+          ],
+          "name" : "brand"
+        },
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "native" : "jsonld.bestPlaceNode@1"
+              },
+              "select" : "price"
+            }
+          ],
+          "name" : "price"
+        },
+        {
+          "candidates" : [
+            {
+              "as" : "image",
+              "from" : {
+                "meta" : "og:image"
+              },
+              "pipe" : [
+                "resolveURL"
+              ]
+            }
+          ],
+          "name" : "image"
+        },
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "meta" : "og:description"
+              }
+            },
+            {
+              "from" : {
+                "native" : "jsonld.bestPlaceNode@1"
+              },
+              "select" : "description"
+            }
+          ],
+          "name" : "summary"
+        },
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "native" : "jsonld.bestPlaceNode@1"
+              },
+              "select" : "rating"
+            }
+          ],
+          "name" : "rating"
+        }
+      ],
+      "id" : "chewy.product",
+      "identities" : [
+        {
+          "from" : {
+            "urlParam" : "id"
+          },
+          "ns" : "chewy.product"
+        }
+      ],
+      "kind" : "product",
+      "match" : {
+        "host" : [
+          "chewy.com"
+        ],
+        "path" : "/:slug/dp/:id",
+        "priority" : 100
+      },
+      "requires" : [
+        "native:jsonld.bestPlaceNode@1"
+      ],
+      "title" : "Chewy"
+    },
+    {
+      "examples" : [
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.amazon.com/dp/B0002AR0II"
+        },
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.amazon.com/gp/product/B0002AR0II"
+        },
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.amazon.com/KONG-Classic-Dog-Toy-Large/dp/B0002AR0II"
+        },
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.amazon.co.uk/dp/B0002AR0II"
+        },
+        {
+          "expect" : {
+            "kind" : "product",
+            "nonEmpty" : [
+              "title"
+            ]
+          },
+          "input" : "https://www.amazon.de/dp/B0002AR0II"
+        }
+      ],
+      "fetch" : {
+        "mode" : "composite",
+        "steps" : [
+          {
+            "mode" : "http",
+            "ua" : "mobileSafari"
+          },
+          {
+            "mode" : "dom",
+            "settle" : {
+              "signals" : [
+                "h1"
+              ]
+            },
+            "ua" : "desktopSafari",
+            "when" : {
+              "anyOf" : [
+                {
+                  "status" : [
+                    403,
+                    429,
+                    503
+                  ]
+                },
+                {
+                  "emptyRecord" : true
+                },
+                {
+                  "missingAny" : [
+                    "title",
+                    "image"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "fields" : [
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "urlRegex" : "(?:/dp/|/gp/product/)([A-Z0-9]{10})"
+              }
+            }
+          ],
+          "name" : "externalId"
+        },
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "jsonld" : "Product.name"
+              },
+              "pipe" : [
+                "decodeEntities",
+                "trim"
+              ]
+            },
+            {
+              "from" : {
+                "css" : "#productTitle"
+              },
+              "pipe" : [
+                "collapseWhitespace",
+                "trim"
+              ]
+            },
+            {
+              "from" : {
+                "textRegex" : "<span[^>]*id=[\"']productTitle[\"'][^>]*>([\\s\\S]*?)</span>"
+              },
+              "pipe" : [
+                "decodeEntities",
+                "collapseWhitespace",
+                "trim"
+              ]
+            },
+            {
+              "from" : {
+                "meta" : "og:title"
+              }
+            },
+            {
+              "from" : {
+                "textRegex" : "<title[^>]*>([\\s\\S]*?)</title>"
+              },
+              "pipe" : [
+                "decodeEntities",
+                "collapseWhitespace",
+                "trim",
+                {
+                  "stripPrefix" : "Amazon.com: "
+                },
+                {
+                  "regexReplace" : [
+                    "\\s*:\\s*Amazon\\.[a-z.]+$",
+                    ""
+                  ]
+                },
+                {
+                  "regexReplace" : [
+                    "^Amazon\\.[a-z.]+$",
+                    ""
+                  ]
+                }
+              ]
+            }
+          ],
+          "name" : "title"
+        },
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "jsonld" : "Product.brand.name"
+              },
+              "pipe" : [
+                "decodeEntities",
+                "trim"
+              ]
+            },
+            {
+              "from" : {
+                "css" : "#bylineInfo"
+              },
+              "pipe" : [
+                "collapseWhitespace",
+                "trim",
+                {
+                  "regexReplace" : [
+                    "^(?:Visit the |Brand: )(.*?)(?: Store)?$",
+                    "$1"
+                  ]
+                }
+              ]
+            },
+            {
+              "from" : {
+                "textRegex" : "<a[^>]*id=[\"']bylineInfo[\"'][^>]*>([\\s\\S]*?)</a>"
+              },
+              "pipe" : [
+                "decodeEntities",
+                "collapseWhitespace",
+                "trim",
+                {
+                  "regexReplace" : [
+                    "^(?:Visit the |Brand: )(.*?)(?: Store)?$",
+                    "$1"
+                  ]
+                }
+              ]
+            }
+          ],
+          "name" : "brand"
+        },
+        {
+          "candidates" : [
+            {
+              "as" : "image",
+              "from" : {
+                "attr" : "@data-old-hires",
+                "css" : "#landingImage"
+              }
+            },
+            {
+              "as" : "image",
+              "from" : {
+                "attr" : "@src",
+                "css" : "#landingImage"
+              }
+            },
+            {
+              "as" : "image",
+              "from" : {
+                "textRegex" : "\"hiRes\"\\s*:\\s*\"(https:[^\"]+)\""
+              }
+            },
+            {
+              "as" : "image",
+              "from" : {
+                "textRegex" : "\"large\"\\s*:\\s*\"(https:[^\"]+)\""
+              }
+            },
+            {
+              "as" : "image",
+              "from" : {
+                "meta" : "og:image"
+              },
+              "pipe" : [
+                "resolveURL"
+              ]
+            }
+          ],
+          "name" : "image"
+        },
+        {
+          "candidates" : [
+            {
+              "from" : {
+                "meta" : "og:description"
+              }
+            },
+            {
+              "from" : {
+                "meta" : "description"
+              }
+            }
+          ],
+          "name" : "summary"
+        }
+      ],
+      "id" : "amazon.product",
+      "identities" : [
+        {
+          "from" : {
+            "urlRegex" : "(?:/dp/|/gp/product/)([A-Z0-9]{10})"
+          },
+          "ns" : "amazon.asin"
+        }
+      ],
+      "kind" : "product",
+      "match" : {
+        "brand" : [
+          "amazon"
+        ],
+        "path" : [
+          "/dp/**",
+          "/gp/product/**",
+          "/*/dp/**"
+        ],
+        "priority" : 100
+      },
+      "title" : "Amazon"
+    }
+  ],
+  "strongNamespaces" : [
+    "chewy.product"
+  ],
+  "triggers" : {
+    "blockedOrThin" : {
+      "anyOf" : [
+        {
+          "status" : [
+            403,
+            429,
+            503
+          ]
+        },
+        {
+          "emptyRecord" : true
+        },
+        {
+          "missingAny" : [
+            "title"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,838 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 63;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		03E40F125C793FA48DB008EA /* MainTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB34896071C97385C56547AE /* MainTabBarController.swift */; };
+		060D89ED1681EC1B0ABD2024 /* EluviumUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5C17C0491FB2CCDB7EE3F1F5 /* EluviumUI */; };
+		26F3E20DD3C47F4197544D0C /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC0DB41C87E376728BF2761 /* SceneDelegate.swift */; };
+		2B3B919ED3E3359DE89FBD3C /* SourcesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CB830761E9C706542F0778A /* SourcesViewController.swift */; };
+		4063BBD1456B6551D3B7B22A /* AppNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84B672CA1F17FEF2D67D098C /* AppNotification.swift */; };
+		49EF84E172426D728AA2D4E2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B25887B3D2BE513E6786A857 /* Assets.xcassets */; };
+		9BC097AA4084E26015E86E7C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEBF34B7B5139091BC8836C3 /* AppDelegate.swift */; };
+		A05EE5B6575E3A304089D792 /* EluviumDOM in Frameworks */ = {isa = PBXBuildFile; productRef = 3B60E3A2577B5A75FAFF4AC8 /* EluviumDOM */; };
+		A54B2B1DE71E41F84F9765E0 /* PasteViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C6CF7BECB5ADD1E7ADE871C /* PasteViewController.swift */; };
+		A5E83256693084636011549D /* EluviumExampleTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E173A6F8667B375783395CBD /* EluviumExampleTheme.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0001 /* ExampleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0002 /* ExampleStore.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0003 /* Catalogs/CatalogsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0004 /* Catalogs/CatalogsViewController.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0005 /* Imports/ImportsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0006 /* Imports/ImportsViewController.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0007 /* Identity/IdentityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0008 /* Identity/IdentityViewController.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0009 /* AppNavigationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA000A /* AppNavigationController.swift */; };
+		AAAAAAAAAAAAAAAAAAAA000B /* Examples/ExamplesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA000C /* Examples/ExamplesViewController.swift */; };
+		ABCDEF0123456789ABCD0001 /* ELVRecord+DisplayTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD0002 /* ELVRecord+DisplayTitle.swift */; };
+		ABCDEF0123456789ABCD0003 /* ImportDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD0004 /* ImportDemo.swift */; };
+		ABCDEF0123456789ABCD0005 /* ImportFileReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD0006 /* ImportFileReader.swift */; };
+		ABCDEF0123456789ABCD0007 /* Separator.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD0008 /* Separator.swift */; };
+		ABCDEF0123456789ABCD000B /* RecordPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD000C /* RecordPanelView.swift */; };
+		ABCDEF0123456789ABCD000D /* UIViewController+PushItems.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD000E /* UIViewController+PushItems.swift */; };
+		ABCDEF0123456789ABCD0012 /* StoreAndCorpusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD0013 /* StoreAndCorpusTests.swift */; };
+		ABCDEF0123456789ABCD0014 /* RecordBrowsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD0015 /* RecordBrowsingTests.swift */; };
+		ABCDEF0123456789ABCD0016 /* ImportsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD0017 /* ImportsTests.swift */; };
+		ABCDEF0123456789ABCD0018 /* IdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD0019 /* IdentityTests.swift */; };
+		ABCDEF0123456789ABCD001A /* LoggingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD001B /* LoggingTests.swift */; };
+		ABCDEF0123456789ABCD001C /* AudioPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCDEF0123456789ABCD001D /* AudioPlayerTests.swift */; };
+		BBBBBBBBBBBBBBBBBBBB0001 /* InputParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0002 /* InputParser.swift */; };
+		BBBBBBBBBBBBBBBBBBBB0003 /* FailureCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0004 /* FailureCopy.swift */; };
+		BBBBBBBBBBBBBBBBBBBB0005 /* FlightySource.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0006 /* FlightySource.swift */; };
+		BBBBBBBBBBBBBBBBBBBB0007 /* LMKStatusLabel+Outcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0008 /* LMKStatusLabel+Outcome.swift */; };
+		BBBBBBBBBBBBBBBBBBBB0009 /* LumiKitCore in Frameworks */ = {isa = PBXBuildFile; productRef = BBBBBBBBBBBBBBBBBBBB000A /* LumiKitCore */; };
+		BBBBBBBBBBBBBBBBBBBB000B /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = BBBBBBBBBBBBBBBBBBBB000C /* SnapKit */; };
+		BBBBBBBBBBBBBBBBBBBB0011 /* RecordImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0012 /* RecordImageLoader.swift */; };
+		CA7A106CA7A106CA7A100001 /* EluviumCatalog in Frameworks */ = {isa = PBXBuildFile; productRef = CA7A106CA7A106CA7A100002 /* EluviumCatalog */; };
+		CCCCCCCCCCCCCCCCCCCC0001 /* EluviumPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = CCCCCCCCCCCCCCCCCCCC0002 /* EluviumPlaces */; };
+		CCCCCCCCCCCCCCCCCCCC0003 /* TwitterArchiveSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCCCCCCCCCCCCCCCCCC0004 /* TwitterArchiveSource.swift */; };
+		CCCCCCCCCCCCCCCCCCCC0005 /* AnchorLadderDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCCCCCCCCCCCCCCCCCC0006 /* AnchorLadderDemo.swift */; };
+		CCCCCCCCCCCCCCCCCCCC0007 /* ParseLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCCCCCCCCCCCCCCCCCC0008 /* ParseLog.swift */; };
+		CE6E2A1C32DAA2F8E1B5C3B5 /* LumiKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 1F553B6C478F790C6B01D5F8 /* LumiKitUI */; };
+		CEB8B43BDAAF5EBC15290AA6 /* EluviumNet in Frameworks */ = {isa = PBXBuildFile; productRef = FFE9E0EBB328B26D5F5E830A /* EluviumNet */; };
+		DDDDDDDDDDDDDDDDDDDD0001 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD0002 /* AudioPlayer.swift */; };
+		DDDDDDDDDDDDDDDDDDDD0003 /* RecordBrowsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD0004 /* RecordBrowsing.swift */; };
+		DDDDDDDDDDDDDDDDDDDD0005 /* AudioPlayerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD0006 /* AudioPlayerBar.swift */; };
+		DDDDDDDDDDDDDDDDDDDD0007 /* Feed/FeedItemsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD0008 /* Feed/FeedItemsViewController.swift */; };
+		DDDDDDDDDDDDDDDDDDDD0009 /* Feed/FeedItemDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD000A /* Feed/FeedItemDetailViewController.swift */; };
+		DDDDDDDDDDDDDDDDDDDD000B /* Record/RecordCardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD000C /* Record/RecordCardViewController.swift */; };
+		DDDDDDDDDDDDDDDDDDDD000D /* OPMLSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD000E /* OPMLSource.swift */; };
+		DDDDDDDDDDDDDDDDDDDD000F /* KayaPack.json in Resources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD0010 /* KayaPack.json */; };
+		E240F9128AB1BD1E50DC3D8E /* EluviumCore in Frameworks */ = {isa = PBXBuildFile; productRef = E6FC8D1BBED5DDAA212A9C19 /* EluviumCore */; };
+		EEEEEEEEEEEEEEEEEEEE0001 /* ResolveFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE0002 /* ResolveFlow.swift */; };
+		EEEEEEEEEEEEEEEEEEEE0003 /* ExampleCorpus.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE0004 /* ExampleCorpus.swift */; };
+		EEEEEEEEEEEEEEEEEEEE0005 /* IdentityShowcase.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE0006 /* IdentityShowcase.swift */; };
+		EEEEEEEEEEEEEEEEEEEE0007 /* RecordActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE0008 /* RecordActionsView.swift */; };
+		EEEEEEEEEEEEEEEEEEEE000B /* ListHeaderScaffold.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE000C /* ListHeaderScaffold.swift */; };
+		EEEEEEEEEEEEEEEEEEEE0011 /* AccessoryButtonStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE0012 /* AccessoryButtonStack.swift */; };
+		FFFFFFFFFFFFFFFFFFFF0001 /* WeReadNotesSample.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFFFFFFFFFFFFFFFFFF0002 /* WeReadNotesSample.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		33FB8233E1E29BD0B56BC280 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 752FF4BB5271C4A92A93902C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72643C4143C227E55EF21B5C;
+			remoteInfo = EluviumExample;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		71900C52D975B1E6547122AA /* EluviumExampleTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = EluviumExampleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E017648C6ED5B162993F988 /* EluviumExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EluviumExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8479E4EBF77904B9DB677605 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		84B672CA1F17FEF2D67D098C /* AppNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotification.swift; sourceTree = "<group>"; };
+		9C6CF7BECB5ADD1E7ADE871C /* PasteViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteViewController.swift; sourceTree = "<group>"; };
+		9CB830761E9C706542F0778A /* SourcesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourcesViewController.swift; sourceTree = "<group>"; };
+		A650633F19E17B72BAE1F1D8 /* Eluvium */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Eluvium; path = ../..; sourceTree = SOURCE_ROOT; };
+		AAAAAAAAAAAAAAAAAAAA0002 /* ExampleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleStore.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0004 /* Catalogs/CatalogsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Catalogs/CatalogsViewController.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0006 /* Imports/ImportsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Imports/ImportsViewController.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0008 /* Identity/IdentityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identity/IdentityViewController.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA000A /* AppNavigationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationController.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA000C /* Examples/ExamplesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Examples/ExamplesViewController.swift; sourceTree = "<group>"; };
+		AB34896071C97385C56547AE /* MainTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabBarController.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD0002 /* ELVRecord+DisplayTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ELVRecord+DisplayTitle.swift"; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD0004 /* ImportDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportDemo.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD0006 /* ImportFileReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportFileReader.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD0008 /* Separator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Separator.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD000C /* RecordPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordPanelView.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD000E /* UIViewController+PushItems.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIViewController+PushItems.swift"; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD0013 /* StoreAndCorpusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreAndCorpusTests.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD0015 /* RecordBrowsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordBrowsingTests.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD0017 /* ImportsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportsTests.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD0019 /* IdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityTests.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD001B /* LoggingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingTests.swift; sourceTree = "<group>"; };
+		ABCDEF0123456789ABCD001D /* AudioPlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerTests.swift; sourceTree = "<group>"; };
+		B25887B3D2BE513E6786A857 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0002 /* InputParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputParser.swift; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0004 /* FailureCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FailureCopy.swift; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0006 /* FlightySource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlightySource.swift; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0008 /* LMKStatusLabel+Outcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LMKStatusLabel+Outcome.swift"; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0012 /* RecordImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordImageLoader.swift; sourceTree = "<group>"; };
+		CCCCCCCCCCCCCCCCCCCC0004 /* TwitterArchiveSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwitterArchiveSource.swift; sourceTree = "<group>"; };
+		CCCCCCCCCCCCCCCCCCCC0006 /* AnchorLadderDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorLadderDemo.swift; sourceTree = "<group>"; };
+		CCCCCCCCCCCCCCCCCCCC0008 /* ParseLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParseLog.swift; sourceTree = "<group>"; };
+		DDC0DB41C87E376728BF2761 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD0002 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD0004 /* RecordBrowsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordBrowsing.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD0006 /* AudioPlayerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerBar.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD0008 /* Feed/FeedItemsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedItemsViewController.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD000A /* Feed/FeedItemDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedItemDetailViewController.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD000C /* Record/RecordCardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Record/RecordCardViewController.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD000E /* OPMLSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OPMLSource.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD0010 /* KayaPack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KayaPack.json; sourceTree = "<group>"; };
+		E173A6F8667B375783395CBD /* EluviumExampleTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EluviumExampleTheme.swift; sourceTree = "<group>"; };
+		EEEEEEEEEEEEEEEEEEEE0002 /* ResolveFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveFlow.swift; sourceTree = "<group>"; };
+		EEEEEEEEEEEEEEEEEEEE0004 /* ExampleCorpus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleCorpus.swift; sourceTree = "<group>"; };
+		EEEEEEEEEEEEEEEEEEEE0006 /* IdentityShowcase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityShowcase.swift; sourceTree = "<group>"; };
+		EEEEEEEEEEEEEEEEEEEE0008 /* RecordActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordActionsView.swift; sourceTree = "<group>"; };
+		EEEEEEEEEEEEEEEEEEEE000C /* ListHeaderScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListHeaderScaffold.swift; sourceTree = "<group>"; };
+		EEEEEEEEEEEEEEEEEEEE0012 /* AccessoryButtonStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessoryButtonStack.swift; sourceTree = "<group>"; };
+		FEBF34B7B5139091BC8836C3 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		FFFFFFFFFFFFFFFFFFFF0002 /* WeReadNotesSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeReadNotesSample.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D7E241AD66D9A61C4EACBC16 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE6E2A1C32DAA2F8E1B5C3B5 /* LumiKitUI in Frameworks */,
+				BBBBBBBBBBBBBBBBBBBB0009 /* LumiKitCore in Frameworks */,
+				BBBBBBBBBBBBBBBBBBBB000B /* SnapKit in Frameworks */,
+				E240F9128AB1BD1E50DC3D8E /* EluviumCore in Frameworks */,
+				CEB8B43BDAAF5EBC15290AA6 /* EluviumNet in Frameworks */,
+				A05EE5B6575E3A304089D792 /* EluviumDOM in Frameworks */,
+				CCCCCCCCCCCCCCCCCCCC0001 /* EluviumPlaces in Frameworks */,
+				CA7A106CA7A106CA7A100001 /* EluviumCatalog in Frameworks */,
+				060D89ED1681EC1B0ABD2024 /* EluviumUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		014E70B98622FCEFC55C58B0 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				EEEEEEEEEEEEEEEEEEEE0012 /* AccessoryButtonStack.swift */,
+				DDDDDDDDDDDDDDDDDDDD0006 /* AudioPlayerBar.swift */,
+				E173A6F8667B375783395CBD /* EluviumExampleTheme.swift */,
+				ABCDEF0123456789ABCD0008 /* Separator.swift */,
+				ABCDEF0123456789ABCD000C /* RecordPanelView.swift */,
+				ABCDEF0123456789ABCD000E /* UIViewController+PushItems.swift */,
+				EEEEEEEEEEEEEEEEEEEE0008 /* RecordActionsView.swift */,
+				EEEEEEEEEEEEEEEEEEEE000C /* ListHeaderScaffold.swift */,
+				BBBBBBBBBBBBBBBBBBBB0008 /* LMKStatusLabel+Outcome.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		032095667D064882B7E67276 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				A650633F19E17B72BAE1F1D8 /* Eluvium */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		25EC63440B0C0071FB2F2C9A /* EluviumExampleTests */ = {
+			isa = PBXGroup;
+			children = (
+				ABCDEF0123456789ABCD0013 /* StoreAndCorpusTests.swift */,
+				ABCDEF0123456789ABCD0015 /* RecordBrowsingTests.swift */,
+				ABCDEF0123456789ABCD0017 /* ImportsTests.swift */,
+				ABCDEF0123456789ABCD0019 /* IdentityTests.swift */,
+				ABCDEF0123456789ABCD001B /* LoggingTests.swift */,
+				ABCDEF0123456789ABCD001D /* AudioPlayerTests.swift */,
+			);
+			path = EluviumExampleTests;
+			sourceTree = "<group>";
+		};
+		3B2401038CC4D8C36279C600 /* Paste */ = {
+			isa = PBXGroup;
+			children = (
+				9C6CF7BECB5ADD1E7ADE871C /* PasteViewController.swift */,
+			);
+			path = Paste;
+			sourceTree = "<group>";
+		};
+		43B45EBEA912EF39329C6356 /* EluviumExample */ = {
+			isa = PBXGroup;
+			children = (
+				8479E4EBF77904B9DB677605 /* Info.plist */,
+				593C44E238C09EBD75969B10 /* App */,
+				A158D8A1EA7AA0DE73FA46FF /* Core */,
+				E625F2D02B92C45116B6F53E /* Features */,
+				DE939455E2D284BBAC3194A5 /* Resources */,
+				014E70B98622FCEFC55C58B0 /* Shared */,
+			);
+			path = EluviumExample;
+			sourceTree = "<group>";
+		};
+		43B9AC8282B3C0DADA8C3CE3 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				9CB830761E9C706542F0778A /* SourcesViewController.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		593C44E238C09EBD75969B10 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				FEBF34B7B5139091BC8836C3 /* AppDelegate.swift */,
+				AAAAAAAAAAAAAAAAAAAA000A /* AppNavigationController.swift */,
+				AB34896071C97385C56547AE /* MainTabBarController.swift */,
+				DDC0DB41C87E376728BF2761 /* SceneDelegate.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		879FADD1B69A0CCAFA572710 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7E017648C6ED5B162993F988 /* EluviumExample.app */,
+				71900C52D975B1E6547122AA /* EluviumExampleTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A158D8A1EA7AA0DE73FA46FF /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				ABCDEF0123456789ABCD0011 /* Fixtures */,
+				84B672CA1F17FEF2D67D098C /* AppNotification.swift */,
+				DDDDDDDDDDDDDDDDDDDD0002 /* AudioPlayer.swift */,
+				ABCDEF0123456789ABCD0002 /* ELVRecord+DisplayTitle.swift */,
+				ABCDEF0123456789ABCD0004 /* ImportDemo.swift */,
+				ABCDEF0123456789ABCD0006 /* ImportFileReader.swift */,
+				EEEEEEEEEEEEEEEEEEEE0004 /* ExampleCorpus.swift */,
+				AAAAAAAAAAAAAAAAAAAA0002 /* ExampleStore.swift */,
+				BBBBBBBBBBBBBBBBBBBB0004 /* FailureCopy.swift */,
+				BBBBBBBBBBBBBBBBBBBB0002 /* InputParser.swift */,
+				CCCCCCCCCCCCCCCCCCCC0008 /* ParseLog.swift */,
+				DDDDDDDDDDDDDDDDDDDD0004 /* RecordBrowsing.swift */,
+				BBBBBBBBBBBBBBBBBBBB0012 /* RecordImageLoader.swift */,
+				EEEEEEEEEEEEEEEEEEEE0002 /* ResolveFlow.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		ABCDEF0123456789ABCD0011 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				CCCCCCCCCCCCCCCCCCCC0006 /* AnchorLadderDemo.swift */,
+				BBBBBBBBBBBBBBBBBBBB0006 /* FlightySource.swift */,
+				EEEEEEEEEEEEEEEEEEEE0006 /* IdentityShowcase.swift */,
+				DDDDDDDDDDDDDDDDDDDD000E /* OPMLSource.swift */,
+				CCCCCCCCCCCCCCCCCCCC0004 /* TwitterArchiveSource.swift */,
+				FFFFFFFFFFFFFFFFFFFF0002 /* WeReadNotesSample.swift */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		DE939455E2D284BBAC3194A5 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B25887B3D2BE513E6786A857 /* Assets.xcassets */,
+				DDDDDDDDDDDDDDDDDDDD0010 /* KayaPack.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		E4E35728E3ACD28243935F9D = {
+			isa = PBXGroup;
+			children = (
+				43B45EBEA912EF39329C6356 /* EluviumExample */,
+				25EC63440B0C0071FB2F2C9A /* EluviumExampleTests */,
+				032095667D064882B7E67276 /* Packages */,
+				879FADD1B69A0CCAFA572710 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E625F2D02B92C45116B6F53E /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				3B2401038CC4D8C36279C600 /* Paste */,
+				43B9AC8282B3C0DADA8C3CE3 /* Sources */,
+				AAAAAAAAAAAAAAAAAAAA000C /* Examples/ExamplesViewController.swift */,
+				AAAAAAAAAAAAAAAAAAAA0004 /* Catalogs/CatalogsViewController.swift */,
+				DDDDDDDDDDDDDDDDDDDD0008 /* Feed/FeedItemsViewController.swift */,
+				DDDDDDDDDDDDDDDDDDDD000A /* Feed/FeedItemDetailViewController.swift */,
+				AAAAAAAAAAAAAAAAAAAA0006 /* Imports/ImportsViewController.swift */,
+				AAAAAAAAAAAAAAAAAAAA0008 /* Identity/IdentityViewController.swift */,
+				DDDDDDDDDDDDDDDDDDDD000C /* Record/RecordCardViewController.swift */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		266868757AEA4278B25C6577 /* EluviumExampleTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E254088EC0B1B77DBDAD88F2 /* Build configuration list for PBXNativeTarget "EluviumExampleTests" */;
+			buildPhases = (
+				FA695677D21153FD2A37C7C0 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EB4ECA10AC1AFA07CDD0A3AF /* PBXTargetDependency */,
+			);
+			name = EluviumExampleTests;
+			packageProductDependencies = (
+			);
+			productName = EluviumExampleTests;
+			productReference = 71900C52D975B1E6547122AA /* EluviumExampleTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		72643C4143C227E55EF21B5C /* EluviumExample */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2D628387B9C8422C50BDE41B /* Build configuration list for PBXNativeTarget "EluviumExample" */;
+			buildPhases = (
+				E22615E915B7FBA1D0D5C1CA /* SwiftFormat */,
+				340A2A2E21CF33D7510C77FB /* Sources */,
+				019F7A27D65E4CD7B22D59FA /* SwiftLint */,
+				AB8AFD3459043A2C272A4C56 /* Resources */,
+				D7E241AD66D9A61C4EACBC16 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = EluviumExample;
+			packageProductDependencies = (
+				1F553B6C478F790C6B01D5F8 /* LumiKitUI */,
+				BBBBBBBBBBBBBBBBBBBB000A /* LumiKitCore */,
+				BBBBBBBBBBBBBBBBBBBB000C /* SnapKit */,
+				E6FC8D1BBED5DDAA212A9C19 /* EluviumCore */,
+				FFE9E0EBB328B26D5F5E830A /* EluviumNet */,
+				3B60E3A2577B5A75FAFF4AC8 /* EluviumDOM */,
+				CCCCCCCCCCCCCCCCCCCC0002 /* EluviumPlaces */,
+				CA7A106CA7A106CA7A100002 /* EluviumCatalog */,
+				5C17C0491FB2CCDB7EE3F1F5 /* EluviumUI */,
+			);
+			productName = EluviumExample;
+			productReference = 7E017648C6ED5B162993F988 /* EluviumExample.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		752FF4BB5271C4A92A93902C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					266868757AEA4278B25C6577 = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = 4987DD9AE1B8EB32F245B67A /* Build configuration list for PBXProject "EluviumExample" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = E4E35728E3ACD28243935F9D;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				62FEADEFE7E41BE40CD9B89F /* XCRemoteSwiftPackageReference "LumiKit" */,
+				BBBBBBBBBBBBBBBBBBBB000D /* XCRemoteSwiftPackageReference "SnapKit" */,
+				1B5DEE0E66EEE10271E04D99 /* XCLocalSwiftPackageReference "../.." */,
+			);
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				72643C4143C227E55EF21B5C /* EluviumExample */,
+				266868757AEA4278B25C6577 /* EluviumExampleTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AB8AFD3459043A2C272A4C56 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				49EF84E172426D728AA2D4E2 /* Assets.xcassets in Resources */,
+				DDDDDDDDDDDDDDDDDDDD000F /* KayaPack.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		019F7A27D65E4CD7B22D59FA /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = SwiftLint;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]; then\n  export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\nif command -v swiftlint >/dev/null 2>&1; then\n  swiftlint\nelse\n  echo \"warning: swiftlint command not found\"\nfi\n";
+		};
+		E22615E915B7FBA1D0D5C1CA /* SwiftFormat */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = SwiftFormat;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]; then\n  export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\nif which swiftformat >/dev/null; then\n  swiftformat \"${SRCROOT}\"\nelse\n  echo \"warning: SwiftFormat not installed\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		340A2A2E21CF33D7510C77FB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4063BBD1456B6551D3B7B22A /* AppNotification.swift in Sources */,
+				9BC097AA4084E26015E86E7C /* AppDelegate.swift in Sources */,
+				EEEEEEEEEEEEEEEEEEEE0001 /* ResolveFlow.swift in Sources */,
+				EEEEEEEEEEEEEEEEEEEE0003 /* ExampleCorpus.swift in Sources */,
+				EEEEEEEEEEEEEEEEEEEE0005 /* IdentityShowcase.swift in Sources */,
+				EEEEEEEEEEEEEEEEEEEE0007 /* RecordActionsView.swift in Sources */,
+				EEEEEEEEEEEEEEEEEEEE0011 /* AccessoryButtonStack.swift in Sources */,
+				ABCDEF0123456789ABCD0001 /* ELVRecord+DisplayTitle.swift in Sources */,
+				ABCDEF0123456789ABCD0003 /* ImportDemo.swift in Sources */,
+				ABCDEF0123456789ABCD0005 /* ImportFileReader.swift in Sources */,
+				ABCDEF0123456789ABCD0007 /* Separator.swift in Sources */,
+				ABCDEF0123456789ABCD000B /* RecordPanelView.swift in Sources */,
+				ABCDEF0123456789ABCD000D /* UIViewController+PushItems.swift in Sources */,
+				EEEEEEEEEEEEEEEEEEEE000B /* ListHeaderScaffold.swift in Sources */,
+				A5E83256693084636011549D /* EluviumExampleTheme.swift in Sources */,
+				03E40F125C793FA48DB008EA /* MainTabBarController.swift in Sources */,
+				A54B2B1DE71E41F84F9765E0 /* PasteViewController.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0001 /* ExampleStore.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0001 /* InputParser.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0011 /* RecordImageLoader.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0003 /* FailureCopy.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0005 /* FlightySource.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0007 /* LMKStatusLabel+Outcome.swift in Sources */,
+				26F3E20DD3C47F4197544D0C /* SceneDelegate.swift in Sources */,
+				2B3B919ED3E3359DE89FBD3C /* SourcesViewController.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0003 /* Catalogs/CatalogsViewController.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0005 /* Imports/ImportsViewController.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0007 /* Identity/IdentityViewController.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0009 /* AppNavigationController.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA000B /* Examples/ExamplesViewController.swift in Sources */,
+				CCCCCCCCCCCCCCCCCCCC0003 /* TwitterArchiveSource.swift in Sources */,
+				CCCCCCCCCCCCCCCCCCCC0005 /* AnchorLadderDemo.swift in Sources */,
+				CCCCCCCCCCCCCCCCCCCC0007 /* ParseLog.swift in Sources */,
+				DDDDDDDDDDDDDDDDDDDD0001 /* AudioPlayer.swift in Sources */,
+				DDDDDDDDDDDDDDDDDDDD0003 /* RecordBrowsing.swift in Sources */,
+				DDDDDDDDDDDDDDDDDDDD0005 /* AudioPlayerBar.swift in Sources */,
+				DDDDDDDDDDDDDDDDDDDD0007 /* Feed/FeedItemsViewController.swift in Sources */,
+				DDDDDDDDDDDDDDDDDDDD0009 /* Feed/FeedItemDetailViewController.swift in Sources */,
+				DDDDDDDDDDDDDDDDDDDD000B /* Record/RecordCardViewController.swift in Sources */,
+				DDDDDDDDDDDDDDDDDDDD000D /* OPMLSource.swift in Sources */,
+				FFFFFFFFFFFFFFFFFFFF0001 /* WeReadNotesSample.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FA695677D21153FD2A37C7C0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ABCDEF0123456789ABCD0012 /* StoreAndCorpusTests.swift in Sources */,
+				ABCDEF0123456789ABCD0014 /* RecordBrowsingTests.swift in Sources */,
+				ABCDEF0123456789ABCD0016 /* ImportsTests.swift in Sources */,
+				ABCDEF0123456789ABCD0018 /* IdentityTests.swift in Sources */,
+				ABCDEF0123456789ABCD001A /* LoggingTests.swift in Sources */,
+				ABCDEF0123456789ABCD001C /* AudioPlayerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		EB4ECA10AC1AFA07CDD0A3AF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72643C4143C227E55EF21B5C /* EluviumExample */;
+			targetProxy = 33FB8233E1E29BD0B56BC280 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		23E8ABCA503734C25B356B35 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.2;
+			};
+			name = Debug;
+		};
+		283EC2CA0ABB783F7B6C856A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EluviumExample/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luminoid.EluviumExample;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
+			};
+			name = Debug;
+		};
+		7014A0C8EFF9D0285B575185 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.2;
+			};
+			name = Release;
+		};
+		A89F2A13A2F35556156DA309 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EluviumExample/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luminoid.EluviumExample;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
+			};
+			name = Release;
+		};
+		EA5520BB1E8835E23F6461CE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luminoid.EluviumExampleTests;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EluviumExample.app/EluviumExample";
+			};
+			name = Debug;
+		};
+		F5FD6633FB05FB93CA08D2B9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luminoid.EluviumExampleTests;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EluviumExample.app/EluviumExample";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2D628387B9C8422C50BDE41B /* Build configuration list for PBXNativeTarget "EluviumExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				283EC2CA0ABB783F7B6C856A /* Debug */,
+				A89F2A13A2F35556156DA309 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4987DD9AE1B8EB32F245B67A /* Build configuration list for PBXProject "EluviumExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				23E8ABCA503734C25B356B35 /* Debug */,
+				7014A0C8EFF9D0285B575185 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E254088EC0B1B77DBDAD88F2 /* Build configuration list for PBXNativeTarget "EluviumExampleTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EA5520BB1E8835E23F6461CE /* Debug */,
+				F5FD6633FB05FB93CA08D2B9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		1B5DEE0E66EEE10271E04D99 /* XCLocalSwiftPackageReference "../.." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		62FEADEFE7E41BE40CD9B89F /* XCRemoteSwiftPackageReference "LumiKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Luminoid/LumiKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		BBBBBBBBBBBBBBBBBBBB000D /* XCRemoteSwiftPackageReference "SnapKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SnapKit/SnapKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1F553B6C478F790C6B01D5F8 /* LumiKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 62FEADEFE7E41BE40CD9B89F /* XCRemoteSwiftPackageReference "LumiKit" */;
+			productName = LumiKitUI;
+		};
+		3B60E3A2577B5A75FAFF4AC8 /* EluviumDOM */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EluviumDOM;
+		};
+		5C17C0491FB2CCDB7EE3F1F5 /* EluviumUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EluviumUI;
+		};
+		BBBBBBBBBBBBBBBBBBBB000A /* LumiKitCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 62FEADEFE7E41BE40CD9B89F /* XCRemoteSwiftPackageReference "LumiKit" */;
+			productName = LumiKitCore;
+		};
+		BBBBBBBBBBBBBBBBBBBB000C /* SnapKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BBBBBBBBBBBBBBBBBBBB000D /* XCRemoteSwiftPackageReference "SnapKit" */;
+			productName = SnapKit;
+		};
+		CA7A106CA7A106CA7A100002 /* EluviumCatalog */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EluviumCatalog;
+		};
+		CCCCCCCCCCCCCCCCCCCC0002 /* EluviumPlaces */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EluviumPlaces;
+		};
+		E6FC8D1BBED5DDAA212A9C19 /* EluviumCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EluviumCore;
+		};
+		FFE9E0EBB328B26D5F5E830A /* EluviumNet */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EluviumNet;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 752FF4BB5271C4A92A93902C /* Project object */;
+}

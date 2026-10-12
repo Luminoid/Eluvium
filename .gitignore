@@ -1,0 +1,38 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcscmblueprint
+
+# Homebrew
+Brewfile.lock.json
+
+# Swift Package Manager
+.build/
+build/
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.iml
+buildServer.json
+
+# Coverage / logs
+*.profraw
+*.profdata
+*.log
+
+# Claude Code (project guides stay local)
+.claude/
+
+# Pack-signing keys (`eluvium keygen` writes them outside the repo by default)
+*.private.key

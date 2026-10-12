@@ -1,0 +1,18 @@
+version: 1
+builder:
+  configs:
+    - documentation_targets:
+        - EluviumCore
+        - EluviumCatalog
+        - EluviumNet
+        - EluviumDOM
+        - EluviumPlaces
+        - EluviumUI
+      platform: ios
+      scheme: Eluvium-Package
+    # EluviumUI needs UIKit (LumiKitUI), so the umbrella scheme does not build
+    # on macOS; the engine and transports do (EluviumNet pulls in EluviumCore).
+    - platform: macos-spm
+      target: EluviumNet
+    - platform: macos-xcodebuild
+      scheme: EluviumNet

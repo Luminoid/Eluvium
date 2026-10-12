@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- Hand-written fixture: a standards-following store. Exercises the @graph
+     JSON-LD form, entity decoding, string prices, og:site_name suffix strip,
+     and the content-first meta attribute order. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Salmon &amp; Sweet Potato Grain-Free Kibble - Pawsome Provisions</title>
+<meta property="og:title" content="Salmon &amp; Sweet Potato Grain-Free Kibble - Pawsome Provisions">
+<meta property="og:site_name" content="Pawsome Provisions">
+<meta content="https://cdn.pawsomeprovisions.example/products/salmon-kibble-hero.jpg" property="og:image">
+<meta property="product:price:amount" content="54.99">
+<meta property="product:price:currency" content="USD">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "Pawsome Provisions",
+      "url": "https://pawsomeprovisions.example"
+    },
+    {
+      "@type": "Product",
+      "name": "Salmon &amp; Sweet Potato Grain-Free Kibble",
+      "brand": { "@type": "Brand", "name": "Pawsome Provisions" },
+      "image": ["https://cdn.pawsomeprovisions.example/products/salmon-kibble-1.jpg"],
+      "offers": {
+        "@type": "Offer",
+        "price": "54.99",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<h1>Salmon &amp; Sweet Potato Grain-Free Kibble</h1>
+</body>
+</html>
