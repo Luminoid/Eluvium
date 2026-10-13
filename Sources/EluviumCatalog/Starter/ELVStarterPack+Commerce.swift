@@ -120,12 +120,12 @@ let starterCommerceJSON = """
         { "name": "title", "candidates": [
           { "from": { "textRegex": "<h3[^>]*page-h3[^>]*>([^<]+)</h3>" }, "pipe": ["decodeEntities", "collapseWhitespace", "trim"] },
           { "from": { "meta": "og:title" },
-            "pipe": ["trim", { "regexReplace": ["^(?:Just a moment.*|Access Denied.*|Sony Electronics.*|Not Found Page.*|LK SAMYANG)$", ""] }] },
+            "pipe": ["trim", { "regexReplace": ["^(?:Just a moment.*|Access Denied.*|Sony Electronics.*|Not Found Page.*|LK SAMYANG)$", ""] }, { "split": " | " }, "first", "trim"] },
           { "from": { "meta": "twitter:title" },
-            "pipe": ["trim", { "regexReplace": ["^(?:Just a moment.*|Access Denied.*|Sony Electronics.*|Not Found Page.*|LK SAMYANG)$", ""] }] },
+            "pipe": ["trim", { "regexReplace": ["^(?:Just a moment.*|Access Denied.*|Sony Electronics.*|Not Found Page.*|LK SAMYANG)$", ""] }, { "split": " | " }, "first", "trim"] },
           { "from": { "textRegex": "<title[^>]*>([\\\\s\\\\S]*?)</title>" },
             "pipe": ["decodeEntities", "collapseWhitespace", "trim",
-              { "regexReplace": ["^(?:Just a moment.*|Access Denied.*|Sony Electronics.*|Not Found Page.*|LK SAMYANG)$", ""] }] }
+              { "regexReplace": ["^(?:Just a moment.*|Access Denied.*|Sony Electronics.*|Not Found Page.*|LK SAMYANG)$", ""] }, { "split": " | " }, "first", "trim"] }
         ]},
         { "name": "summary", "candidates": [
           { "from": { "meta": "og:description" }, "pipe": ["trim", { "regexReplace": ["^.{0,2}$", ""] }] },

@@ -126,7 +126,9 @@ struct ELVStarterTravelSourcesTests {
             try registry.recognize(#require(URL(string: url)))?.sourceId
         }
         #expect(try recognized("https://maps.apple/p/4yzVtPGTAYBHbCf") == "shortlinks.travel")
-        #expect(try recognized("https://maps.apple.com/?q=Ferry+Building") == "applemaps.place")
+        // maps.apple.com is the Apple sources' (the MapKit shadow outranks
+        // the URL-only source when both are declared).
+        #expect(try recognized("https://maps.apple.com/?q=Ferry+Building") == "applemaps.place.mapkit")
         #expect(try recognized("http://xhslink.com/o/exampleId0") == "shortlinks.media")
         #expect(try recognized("https://www.xiaohongshu.com/explore/64f1c2e3000000001e02a1b5") == "xiaohongshu.post")
         #expect(try recognized("https://yelp.to/AbC123") == "shortlinks.travel")
@@ -136,46 +138,41 @@ struct ELVStarterTravelSourcesTests {
     // MARK: - Google Maps
 
     @Test
-    func `The Google Maps trio shares the gmapsMetas fragment; the MapKit shadow keeps its ordered ladders inline`() throws {
+    func `The Google place sources read metas in a scoped step; the share source keeps the fragment`() throws {
         // The shadow needs EluviumPlaces' ops, so it is skipped here: read the
         // resolved declarations off the pack, not the active roster.
         let pack = try loaded()
         func declared(_ id: String) throws -> ELVSource {
             try #require(pack.pack.sources.first { $0.id == id }, "\(id)")
         }
-        for id in ["gmaps.place", "gmaps.place.mapkit", "gmaps.share"] {
+        // gmaps.place and its MapKit shadow fetch the place page as an
+        // enrichment step scoped to the meta fields, so the MapKit lookup in
+        // the URL step never runs twice.
+        for id in ["gmaps.place", "gmaps.place.mapkit"] {
             let source = try declared(id)
-            #expect(source.use.contains("gmapsMetas"), "\(id)")
-            for name in ["metaName", "title", "locality", "address", "placeType", "category", "rating"] {
-                #expect(source.fields.contains { $0.name == name }, "\(id) lacks \(name)")
-            }
-            // title's littleEndianLabel input reads `$field.metaName`, and
-            // fields evaluate in declaration order, so metaName resolves first.
-            let names = source.fields.map(\.name)
-            let metaName = try #require(names.firstIndex(of: "metaName"), "\(id)")
-            let title = try #require(names.firstIndex(of: "title"), "\(id)")
-            #expect(metaName < title, "\(id)")
+            #expect(!source.use.contains("gmapsMetas"), "\(id)")
+            let metaStep = try #require(source.fetch?.resolvedSteps.last, "\(id)")
+            let names = try #require(metaStep.fields, "\(id)").map(\.name)
+            #expect(names == ["metaNameRaw", "metaName", "address", "locality", "placeType", "category", "rating"], "\(id)")
+            #expect(source.label == ["title", "metaName"], "\(id)")
         }
+        // The share source renders, so its metas ride the flat ladder.
+        #expect(try declared("gmaps.share").use.contains("gmapsMetas"))
         // The shadow: every field whose MapKit input reads `$field.title` is
-        // declared after title, and the meta candidates keep outranking the
-        // MapKit ones (the fragment's copies land as inert trailing duplicates).
+        // declared after title, and every MapKit candidate shares one input
+        // map, so the walk runs one search.
         let mapkit = try declared("gmaps.place.mapkit")
         let names = mapkit.fields.map(\.name)
         let title = try #require(names.firstIndex(of: "title"))
-        for dependent in ["locality", "address", "phone", "category", "geo"] {
-            let index = try #require(names.firstIndex(of: dependent), "\(dependent)")
-            #expect(index > title, "\(dependent)")
-        }
-        for name in ["locality", "address", "category"] {
-            let field = try #require(mapkit.fields.first { $0.name == name }, "\(name)")
-            let ops = field.candidates.map { candidate -> String? in
-                if case let .native(op, _) = candidate.from { return op }
-                return nil
+        var inputs = Set<[String: String]>()
+        for field in mapkit.fields {
+            for candidate in field.candidates {
+                guard case let .native(op, input) = candidate.from, op == "place.mapKitLookup@2" else { continue }
+                #expect(try #require(names.firstIndex(of: field.name)) > title, "\(field.name)")
+                inputs.insert(input)
             }
-            let firstMeta = try #require(ops.firstIndex(of: "maps.classifyMetaSegments@1"), "\(name)")
-            let firstMapKit = try #require(ops.firstIndex(of: "place.mapKitLookup@1"), "\(name)")
-            #expect(firstMeta < firstMapKit, "\(name)")
         }
+        #expect(inputs.count == 1)
     }
 
     @Test
@@ -266,13 +263,18 @@ struct ELVStarterTravelSourcesTests {
     }
 
     @Test
-    func `The Booking Share- short path is not claimed by the lodging source`() throws {
-        // Match paths are segment-literal, so a /Share- redirector row is
-        // inexpressible; the share link falls to the OpenGraph floor (which
-        // follows the redirect) instead of being claimed and left empty.
+    func `The Booking Share- short path is the redirector's, previewed as the lodging source`() throws {
+        // A glued-prefix capture scopes the redirector to `/Share-…` alone;
+        // real property pages stay booking.lodging's.
         let registry = try declaredRegistry()
         let share = try #require(URL(string: "https://www.booking.com/Share-aBcD12"))
-        #expect(registry.recognize(share) == nil)
+        #expect(registry.recognize(share)?.sourceId == "booking.share")
+        #expect(registry.recognize(share)?.params["token"] == "aBcD12")
+        let page = try #require(URL(string: "https://www.booking.com/hotel/us/zephyr.html"))
+        #expect(registry.recognize(page)?.sourceId == "booking.lodging")
+        let pack = try loaded()
+        let redirector = try #require(pack.pack.sources.first { $0.id == "booking.share" })
+        #expect(redirector.previewAs == ["booking.com": "booking.lodging"])
     }
 
     @Test
@@ -514,7 +516,8 @@ struct ELVStarterTravelSourcesTests {
         // The dom rung implies its own capability; `requires` lists only
         // the op no step mode implies.
         #expect(source.fetch?.requiredModes.contains("dom") == true)
-        #expect(source.requires == ["native:trail.statsFromText@2"])
+        #expect(source.requires == ["native:trail.statsFromText@3"])
+        #expect(source.fetch?.resolvedSteps.last?.regions == ["h1", "header", "body"])
 
         // `keep` (not `strip`): the share_token gates access to a private
         // tour, so canonicalization must never shed it.

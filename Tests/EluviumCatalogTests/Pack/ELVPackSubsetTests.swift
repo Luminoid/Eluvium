@@ -57,7 +57,7 @@ struct ELVPackSubsetTests {
         // The closure is exact for every source, not only the sampled
         // three: one subset per starter id, each loading clean.
         let ids = try ELVPackLoader.load(embedded: ELVStarterPack.data, capabilities: caps).pack.sources.map(\.id)
-        #expect(ids.count == 66)
+        #expect(ids.count == 74)
         for id in ids {
             let data = try ELVPackSubset.subset(fromPackJSON: ELVStarterPack.data, ids: [id])
             let loaded = try ELVPackLoader.load(embedded: data, capabilities: caps)

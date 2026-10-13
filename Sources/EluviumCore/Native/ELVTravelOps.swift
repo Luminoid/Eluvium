@@ -11,6 +11,7 @@ extension ELVNativeOps {
     static func registerTravelOps() {
         registerMapsOps()
         registerTrailOps()
+        registerTrailOpsV3()
         registerFlightOps()
     }
 
@@ -134,6 +135,80 @@ extension ELVNativeOps {
             if let duration = stats.duration { outputs["duration"] = .text(duration) }
             return outputs.isEmpty ? nil : outputs
         }
+    }
+
+    /// `trail.statsFromText@3`, the page-region ladder: lenient share text
+    /// (`text`, typically `$paste.text`) wins per field, then the page
+    /// sources `ELVTrailStats.pageSources` ranks (anchored header, anchored
+    /// body, template prose, og, meta). `sources` names, comma-joined, the
+    /// sources that contributed, so a wrong stat is attributable. Raw
+    /// document text never contributes: an http document offers only its
+    /// metas, and a dom step offers its declared `regions`.
+    private static func registerTrailOpsV3() {
+        register("trail.statsFromText", version: 3) { input, context in
+            var merged: ELVTrailStats?
+            var sources: [String] = []
+            func fold(_ tag: String, _ stats: ELVTrailStats?) {
+                guard let stats else { return }
+                let next = merged?.merging(stats) ?? stats
+                if next != merged { sources.append(tag) }
+                merged = next
+            }
+            fold("share", input["text"].flatMap(ELVTrailStats.parse(fromText:)))
+            for source in ELVTrailStats.pageSources(in: context.document) {
+                fold(source.tag, source.stats)
+            }
+            guard let merged, merged.hasAny else { return nil }
+            var outputs: [String: ELVValue] = ["sources": .text(sources.joined(separator: ","))]
+            if let distance = merged.distance { outputs["distance"] = .text(distance) }
+            if let difficulty = merged.difficulty { outputs["difficulty"] = .text(difficulty) }
+            if let duration = merged.duration { outputs["duration"] = .text(duration) }
+            return outputs
+        }
+        // The trail's own locality, finest first: a "…trail near Palo Alto,
+        // California." sentence in the og or plain description or the place
+        // node's own description (AllTrails' og:description can lead with
+        // fee boilerplate while the node keeps the template sentence), then
+        // the node's digit-free postal address (a street-bearing address is
+        // not a locality), then the URL path's region seed ("Wyoming, US"
+        // from `region` + a two-letter `country`).
+        register("trail.locality", version: 1) { input, context in
+            let document = context.document
+            let node = ELVJSONLDPlaceNode.best(in: document.jsonLDNodes)?.raw
+            let blurbs = [document.metas["og:description"], document.metas["description"], node.flatMap { ELVJSONLDPlaceNode.asString($0["description"]) }]
+            if let near = blurbs.lazy.compactMap({ $0.flatMap(nearLocality(in:)) }).first {
+                return ["locality": .text(near)]
+            }
+            if let address = node.flatMap({ ELVJSONLDPlaceNode.addressString(from: $0["address"]) }),
+               address.rangeOfCharacter(from: .decimalDigits) == nil {
+                return ["locality": .text(address)]
+            }
+            if let region = input["region"], let country = input["country"], country.count == 2, country.allSatisfy(\.isLetter) {
+                let name = region.split(whereSeparator: { $0 == "-" || $0 == "_" })
+                    .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+                    .joined(separator: " ")
+                guard !name.isEmpty else { return nil }
+                return ["locality": .text("\(name), \(country.uppercased())")]
+            }
+            return nil
+        }
+    }
+
+    // A place name starts with a capital: "near the tide pools, sneakers
+    // are fine" is prose, not a locality.
+    // swiftlint:disable:next force_try
+    private static let nearLocalityRegex = try! NSRegularExpression(pattern: "\\b[Nn]ear\\s+(\\p{Lu}[^.!\\n]{1,79}?)\\s*[.!\\n]")
+
+    /// "Experience this 0.9-mile out-and-back trail near Palo Alto,
+    /// California." → "Palo Alto, California". Bounded by the pattern itself
+    /// (an 80-character lazy run between fixed delimiters).
+    static func nearLocality(in text: String) -> String? {
+        let bounded = String(text.prefix(4096))
+        guard let match = nearLocalityRegex.firstMatch(in: bounded, range: NSRange(bounded.startIndex..., in: bounded)),
+              match.numberOfRanges >= 2, let range = Range(match.range(at: 1), in: bounded)
+        else { return nil }
+        let locality = bounded[range].trimmingCharacters(in: .whitespacesAndNewlines)
+        return locality.isEmpty ? nil : locality
     }
 
     /// The no-input fallback: skeptical parses over the scanned document's

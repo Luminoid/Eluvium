@@ -182,23 +182,41 @@ public enum ELVExtractor {
     }
 
     /// Resolves a native op's declared inputs: `$field.x` reads an earlier
-    /// field's resolved value, `$param.y` a recognition param, anything else
-    /// is a literal. A dangling reference invalidates the candidate.
+    /// field's resolved value, `$param.y` a recognition param, `$paste.z` a
+    /// paste value (`ELVPasteContext`), anything else is a literal. A
+    /// dangling reference invalidates the candidate, unless it ends in `?`
+    /// (schemaMinor 5): an optional reference that cannot resolve leaves its
+    /// input out, so one candidate serves every shape of input (a link with
+    /// a pin, one with only a viewport, one with neither) and the per-walk
+    /// op memo runs a lookup once for all of them.
     static func resolveNativeInputs(_ input: [String: String], context: ELVExtractionContext) -> [String: String]? {
         var resolved: [String: String] = [:]
-        for (key, template) in input {
-            if template.hasPrefix("$field.") {
-                let name = String(template.dropFirst("$field.".count))
-                guard let value = context.fields[name], let string = ELVSelectorEngine.stringForm(of: value)?.singleString else { return nil }
-                resolved[key] = string
-            } else if template.hasPrefix("$param.") {
-                guard let value = context.params[String(template.dropFirst("$param.".count))] else { return nil }
-                resolved[key] = value
-            } else {
-                resolved[key] = template
+        for (key, rawTemplate) in input {
+            let optional = rawTemplate.hasPrefix("$") && rawTemplate.hasSuffix("?")
+            let template = optional ? String(rawTemplate.dropLast()) : rawTemplate
+            guard let value = resolveNativeInput(template, context: context) else {
+                if optional { continue }
+                return nil
             }
+            resolved[key] = value
         }
         return resolved
+    }
+
+    /// One input reference resolved, or nil when it dangles.
+    private static func resolveNativeInput(_ template: String, context: ELVExtractionContext) -> String? {
+        if template.hasPrefix("$field.") {
+            let name = String(template.dropFirst("$field.".count))
+            guard let value = context.fields[name] else { return nil }
+            return ELVSelectorEngine.stringForm(of: value)?.singleString
+        }
+        if template.hasPrefix("$param.") {
+            return context.params[String(template.dropFirst("$param.".count))]
+        }
+        if template.hasPrefix("$paste.") {
+            return context.paste?.value(String(template.dropFirst("$paste.".count)))
+        }
+        return template
     }
 
     /// Picks the selected output. A multi-output op with no `select` is a

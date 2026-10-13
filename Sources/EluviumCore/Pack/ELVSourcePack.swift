@@ -240,6 +240,15 @@ public struct ELVSource: Sendable, Decodable, Equatable {
     /// the image can send the Referer the origin demands (Douban 418s bare
     /// image fetches). Unknown values are ignored with a validator note.
     public var imageReferer: String?
+    /// The label ladder (schemaMinor 5): field names in precedence order.
+    /// When declared, the assembler writes the winning value to the
+    /// record's `label` field (`ELVLabelResolver`); absent, the source's
+    /// records carry no `label`.
+    public var label: [String]
+    /// A redirector's offline stand-in (schemaMinor 5): short-link host →
+    /// the source its links expand to (`abnb.me` → `airbnb.lodging`), so a
+    /// preview can show the brand and kind before the chase runs.
+    public var previewAs: [String: String]
 
     public init(
         id: String,
@@ -260,7 +269,9 @@ public struct ELVSource: Sendable, Decodable, Equatable {
         list: ELVListSpec? = nil,
         resolvesVia: String? = nil,
         seed: String? = nil,
-        imageReferer: String? = nil
+        imageReferer: String? = nil,
+        label: [String] = [],
+        previewAs: [String: String] = [:]
     ) {
         self.id = id
         self.title = title
@@ -281,6 +292,8 @@ public struct ELVSource: Sendable, Decodable, Equatable {
         self.resolvesVia = resolvesVia
         self.seed = seed
         self.imageReferer = imageReferer
+        self.label = label
+        self.previewAs = previewAs
     }
 
     public init(from decoder: Decoder) throws {
@@ -308,6 +321,9 @@ public struct ELVSource: Sendable, Decodable, Equatable {
         resolvesVia = try container.decodeIfPresent(String.self, forKey: .init("resolvesVia"))
         seed = try container.decodeIfPresent(String.self, forKey: .init("seed"))
         imageReferer = try container.decodeIfPresent(String.self, forKey: .init("imageReferer"))
+        label = try container.elvStringList(forKey: .init("label"))
+        // A malformed table (not a string map) costs the hint only.
+        previewAs = (try? container.decodeIfPresent([String: String].self, forKey: .init("previewAs"))) ?? [:]
     }
 }
 

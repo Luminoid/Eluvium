@@ -46,15 +46,24 @@ public struct ELVSourceRegistry: Sendable {
         entries = sources.map { Entry(source: $0, paths: $0.match.paths.map { ELVPathPattern($0) }) }
     }
 
-    /// All sources matching `url`, best first.
+    /// All sources matching `url`, best first. A web URL matches host and
+    /// brand rules; any other scheme matches only scheme rules (an app link
+    /// like `comgooglemaps://?q=…` has no host to match).
     public func candidates(for url: URL) -> [ELVRecognition] {
-        guard let host = url.host?.lowercased(), !host.isEmpty else { return [] }
+        let scheme = url.scheme?.lowercased() ?? ""
+        let isWeb = scheme == "http" || scheme == "https"
+        let host = url.host?.lowercased() ?? ""
+        guard isWeb ? !host.isEmpty : !scheme.isEmpty else { return [] }
         var matches: [(order: Int, recognition: ELVRecognition)] = []
         for (order, entry) in entries.enumerated() {
             let rule = entry.source.match
-            let hostMatched = rule.hosts.contains { ELVHostMatcher.hostMatches(host, pattern: $0) }
-                || rule.brands.contains { ELVHostMatcher.hostMatchesBrand(host, brand: $0) }
-            guard hostMatched else { continue }
+            let matched = if isWeb {
+                rule.hosts.contains { ELVHostMatcher.hostMatches(host, pattern: $0) }
+                    || rule.brands.contains { ELVHostMatcher.hostMatchesBrand(host, brand: $0) }
+            } else {
+                rule.schemes.contains(scheme)
+            }
+            guard matched else { continue }
 
             var params: [String: String] = [:]
             if !entry.paths.isEmpty {

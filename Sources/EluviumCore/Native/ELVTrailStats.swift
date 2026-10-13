@@ -163,6 +163,53 @@ struct ELVTrailStats: Equatable {
         return nil
     }
 
+    // MARK: - Page regions
+
+    /// Every page source of trail stats, most trusted first, each with its
+    /// provenance tag: the rendered h1 header block, the rendered body
+    /// ANCHORED at the page's own name, the body's template prose (line
+    /// scoped), then the og and plain description metas. Unanchored body
+    /// text never contributes: a related-trail card's "Hard · 8.2 mi" is a
+    /// perfectly shaped cluster for someone else's trail. Anchors are tried
+    /// in order (the first h1 is not always the trail title; og:title can
+    /// name a different route than the page renders) and the first region
+    /// that PARSES wins per source. Regions come from a dom step's
+    /// `regions` (`@h1`, `@header`, `@body`); an http document has only the
+    /// metas.
+    static func pageSources(in document: ELVDocument) -> [(tag: String, stats: Self?)] {
+        let regions = document.cssResults
+        let nodeName = ELVJSONLDPlaceNode.best(in: document.jsonLDNodes).flatMap { ELVJSONLDPlaceNode.asString($0.raw["name"]) }
+        let anchors = [regions["@h1"], nodeName, document.metas["og:title"] ?? document.title].compactMap { $0.flatMap(nonEmpty) }
+        func firstParse(_ candidates: [String]) -> Self? {
+            candidates.lazy.compactMap(parseFromPage).first
+        }
+        let header = regions["@header"].flatMap(nonEmpty).map { text in anchors.compactMap { regionNear(name: $0, in: text) } + [text] } ?? []
+        let body = regions["@body"].flatMap(nonEmpty)
+        let anchoredBody = body.map { text in anchors.compactMap { regionNear(name: $0, in: text) } } ?? []
+        return [
+            ("header", firstParse(header)),
+            ("body", firstParse(anchoredBody)),
+            ("prose", body.flatMap(parseTemplateLine(fromText:))),
+            ("og", document.metas["og:description"].flatMap(nonEmpty).flatMap(parseFromPage)),
+            ("meta", document.metas["description"].flatMap(nonEmpty).flatMap(parseFromPage)),
+        ]
+    }
+
+    /// The slice of `text` from the first occurrence of `name` (case- and
+    /// diacritic-insensitive), at most `span` characters. Nil when absent.
+    static func regionNear(name: String, in text: String, span: Int = 800) -> String? {
+        guard let name = nonEmpty(name),
+              let range = text.range(of: name, options: [.caseInsensitive, .diacriticInsensitive])
+        else { return nil }
+        let end = text.index(range.lowerBound, offsetBy: span, limitedBy: text.endIndex) ?? text.endIndex
+        return String(text[range.lowerBound ..< end])
+    }
+
+    private static func nonEmpty(_ string: String) -> String? {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     // MARK: - Field parsers
 
     private static func distance(in text: String) -> String? {
@@ -195,11 +242,16 @@ struct ELVTrailStats: Equatable {
 
     /// Removes URL-shaped tokens so query strings never feed the stat
     /// regexes (the "?sh=7mixyz" share token once read as "7 mi").
+    /// Line-preserving: the labeled and template-line parsers read rendered
+    /// text line by line, so only the URL tokens go, never the newlines.
     private static func strippingURLs(_ text: String) -> String {
         guard text.range(of: "://") != nil else { return text }
-        return text.split(whereSeparator: \.isWhitespace)
-            .filter { $0.range(of: "://") == nil }
-            .joined(separator: " ")
+        return text.components(separatedBy: "\n").map { line in
+            guard line.range(of: "://") != nil else { return line }
+            return line.split(whereSeparator: \.isWhitespace)
+                .filter { $0.range(of: "://") == nil }
+                .joined(separator: " ")
+        }.joined(separator: "\n")
     }
 
     /// Trimmed capture groups (1...) of the first match.

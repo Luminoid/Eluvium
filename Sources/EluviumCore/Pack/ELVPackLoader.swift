@@ -20,7 +20,7 @@ public struct ELVCapabilities: Sendable {
 
 /// The binary version constant shared by capability checks.
 public enum ELVBinary {
-    public static let version = "0.1"
+    public static let version = "0.2"
 
     /// Compares dotted numeric versions: `isAtLeast("1.3", required: "1.10")`
     /// is false; missing components are zero.
@@ -76,17 +76,22 @@ public struct ELVLoadedPack: Sendable {
     /// `index.addStrongNamespaces(pack.strongNamespaces)`. Append-only
     /// : packs add strong namespaces, never remove the binary's.
     public let strongNamespaces: Set<String>
+    /// What the binary that loaded this pack can do: the fetch modes its
+    /// sources were gated against. The offline preview reads it to say
+    /// whether a full run would fetch.
+    public let capabilities: ELVCapabilities
 
     private let sourcesById: [String: ELVSource]
 
-    init(pack: ELVSourcePack, sources: [ELVSource], skipped: [ELVSkippedSource], diagnostics: [ELVPackDiagnostic] = [], strongNamespaces: Set<String>? = nil) {
+    init(pack: ELVSourcePack, sources: [ELVSource], skipped: [ELVSkippedSource], capabilities: ELVCapabilities, diagnostics: [ELVPackDiagnostic] = [], strongNamespaces: Set<String>? = nil) {
         self.pack = pack
+        self.capabilities = capabilities
         self.sources = sources
         self.skipped = skipped
         self.diagnostics = diagnostics
         self.strongNamespaces = strongNamespaces ?? Set(pack.strongNamespaces.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
         registry = ELVSourceRegistry(sources: sources.compactMap { source in
-            guard let match = source.match, match.hosts.isEmpty == false || match.brands.isEmpty == false || match.paths.isEmpty == false else { return nil }
+            guard let match = source.match, !match.hosts.isEmpty || !match.brands.isEmpty || !match.schemes.isEmpty || !match.paths.isEmpty else { return nil }
             return ELVMatchableSource(id: source.id, match: match)
         })
         genericFloors = sources.filter { source in
@@ -134,7 +139,7 @@ public enum ELVPackLoader {
     /// pack declaring a newer minor still loads (forward compatibility: its
     /// unknown vocabulary degrades per source with the usual diagnostics)
     /// and gets one pack-level note saying so.
-    public static let supportedSchemaMinor = 4
+    public static let supportedSchemaMinor = 5
 
     /// One-time builtin-op registration: `static let` initialization gives
     /// the thread-safe once semantics, so repeated pack loads stop re-taking
@@ -226,7 +231,7 @@ public enum ELVPackLoader {
         }
         // Named triggers resolve the same way (whole-trigger replacement;
         // the string form cannot carry sibling keys). Dangling names stay
-        // set — `stepPermitted` never admits them — and both directions get
+        // set — `ELVFetchStep.permits` never admits them — and both directions get
         // diagnostics here, where reference and table are still visible.
         var referencedTriggers = Set<String>()
         for source in pack.sources {
@@ -258,7 +263,7 @@ public enum ELVPackLoader {
                 active.append(source)
             }
         }
-        return ELVLoadedPack(pack: pack, sources: active, skipped: skipped, diagnostics: resolutionNotes + ELVPackValidator.diagnose(pack))
+        return ELVLoadedPack(pack: pack, sources: active, skipped: skipped, capabilities: capabilities, diagnostics: resolutionNotes + ELVPackValidator.diagnose(pack))
     }
 
     /// Applies the source's `use` list: a fragment's fetch plan fills an
@@ -307,7 +312,7 @@ public enum ELVPackLoader {
             return "requires binary \(minBinary), this is \(capabilities.binaryVersion)"
         }
         if let fetch = source.fetch {
-            for mode in fetch.requiredModes.sorted() where !capabilities.fetchModes.contains(mode) {
+            for mode in fetch.gatingModes.sorted() where !capabilities.fetchModes.contains(mode) {
                 return mode == ELVFetchModes.unsupported ? "fetch plan declares no mode" : "fetch mode \(mode) unavailable"
             }
         }

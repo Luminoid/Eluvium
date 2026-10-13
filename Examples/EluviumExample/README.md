@@ -42,7 +42,7 @@ xcodebuild build -project EluviumExample.xcodeproj -scheme EluviumExample \
 
 | Tab | Demonstrates |
 |-----|--------------|
-| **Paste** | Paste any URL and run recognize → fetch → extract → assemble, with typed failure copy and the resulting record card; feeds, podcasts, and albums chain into an item browser with audio playback. "Try an example…" opens the pack's example corpus as a tap-to-run browser. |
+| **Paste** | Paste a link, or share text with one in it (app links like `comgooglemaps://` too): the pack's offline preview names the record and what a run would add as you type, then Resolve runs recognize → fetch → extract → assemble with the share text riding along, with typed failure copy and the resulting record card; feeds, podcasts, and albums chain into an item browser with audio playback. "Try an example…" opens the pack's example corpus as a tap-to-run browser. |
 | **Sources** | The installed starter pack: every active source's match rule, fetch plan, and example count, plus the sources this binary skipped and why. |
 | **Catalogs** | A resumable catalog walk (PokéAPI dex) with visible cursor state and run / run-to-end / stop / restart controls, deduped on externalId, plus the pack's seeded lists resolving into browsable list records. |
 | **Imports** | Archive import from the document picker or a file dropped on the screen, with row-level results. Bundled samples (a Flighty CSV, an OPML subscription list, a sharded Twitter archive export, and a 微信读书 notes export) sit in one menu; re-importing shows externalId dedup and merge policies preserving user edits. Real iNaturalist and eBird CSV exports and WeRead notes `.txt` exports import through the starter pack's own file sources. |

@@ -268,7 +268,7 @@ final class CatalogsViewController: UIViewController {
         // Cancel-first, like every other resolve entry point: a double-tap
         // must not push two browsers.
         seedTask?.cancel()
-        let name = source.title ?? source.id
+        let name = source.displayName
         statusLabel.show("Fetching \(name)…", status: .neutral)
         tableView.setFittedHeaderView(tableHeader)
         seedTask = ResolveFlow.run(.seed(source), status: statusLabel, showsStages: false, onRecord: { [weak self] record in
@@ -335,7 +335,7 @@ final class CatalogsViewController: UIViewController {
             return
         }
         let total = totalCount.map(String.init) ?? "?"
-        var lines = ["\(catalog.title ?? catalog.id)\(Separator.dot)loaded \(records.count) of \(total)\(Separator.dot)pages fetched: \(state.pagesFetched)"]
+        var lines = ["\(catalog.displayName)\(Separator.dot)loaded \(records.count) of \(total)\(Separator.dot)pages fetched: \(state.pagesFetched)"]
         if state.completed {
             lines.append("Walk complete.")
         } else if let next = state.nextURL {
@@ -399,7 +399,7 @@ extension CatalogsViewController: UITableViewDataSource {
             let source = catalogSources[indexPath.row]
             // The checkmark trailing reads as selected to VoiceOver.
             cell.lmk_applyListRow(
-                LMKListRowConfiguration(title: source.title ?? source.id, subtitle: source.kind, trailing: source.id == activeCatalog?.id ? .checkmark : .none),
+                LMKListRowConfiguration(title: source.displayName, subtitle: source.kind, trailing: source.id == activeCatalog?.id ? .checkmark : .none),
                 backgroundColor: LMKColor.backgroundSecondary
             )
             return cell
@@ -407,7 +407,7 @@ extension CatalogsViewController: UITableViewDataSource {
             let cell = tableView.dequeueReusableCell(withIdentifier: LMKListTable.cellReuseIdentifier, for: indexPath)
             let source = seededSources[indexPath.row]
             cell.lmk_applyListRow(
-                LMKListRowConfiguration(title: source.title ?? source.id, subtitle: source.collections.first?.kind ?? source.kind, trailing: .disclosure),
+                LMKListRowConfiguration(title: source.displayName, subtitle: source.collections.first?.kind ?? source.kind, trailing: .disclosure),
                 backgroundColor: LMKColor.backgroundSecondary
             )
             return cell

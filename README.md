@@ -38,7 +38,7 @@ Native ops register per module, **before** the first pack load; a binary that sk
 
 ```swift
 ELVNetOps.register()      // shortlink.expand: required for redirector sources
-ELVPlacesOps.register()   // place.mapKitLookup, geo.anchorLadder
+ELVPlacesOps.register()   // place.mapKitLookup, geo.anchorLadder (pass geocoder: for the address anchor)
 let pack = try ELVStarterPack.load(capabilities: .init(fetchModes: ["http", "json", "feed", "dom", "archive"], binaryVersion: ELVBinary.version))
 let pipeline = ELVPipeline(pack: pack, domRenderer: ELVWebViewRenderer())  // renderer optional
 ```
@@ -46,6 +46,21 @@ let pipeline = ELVPipeline(pack: pack, domRenderer: ELVWebViewRenderer())  // re
 An identity graph built over that pack's records takes the pack's strong namespaces too, so records from different sources that share a stable id (an eBird species code, an IMDb id, an iNaturalist taxon) link: `var index = ELVEntityIndex(); index.addStrongNamespaces(pack.strongNamespaces)`.
 
 `ELVStarterPack` lives in `EluviumCatalog`; loading the full roster means linking that product. To ship only a subset, curate one instead (below) and load your generated pack in its place.
+
+## Pasted links
+
+A paste flow reads the text in two halves. `ELVPastedInput.parse` decides whether a title box's text is a link at all (ordinary titles like "Dinner at 7" or "Dinner.at" never are) and lifts the link out of a share blurb. The pack's offline `preview` then answers at once, with no network; `run` (or an `ELVIngestSession`'s `ingest`) does the rest when `needsFullRun` says there is more:
+
+```swift
+guard let input = ELVPastedInput.parse(text, policy: pack.pastePolicy) else { return }   // not a link
+let preview = pack.preview(input)            // synchronous: label, kind, URL-borne pin
+show(preview.record.fields["label"])
+if preview.needsFullRun {
+    let run = await session.ingest(input: input)   // the blurb rides along to every step
+}
+```
+
+Sources with a `label` ladder put one display label on each record, page-derived names ahead of a share blurb's name, ahead of the URL slug, ahead of the brand; a label your user typed (`userLabel:`) outranks them all.
 
 ## Selecting sources
 

@@ -9,9 +9,19 @@ import Foundation
 /// per fetch would serialize every source's transport behind one queue.
 public struct ELVHTTPFetcher: ELVFetching, Sendable {
     private let session: URLSession
+    /// The host's ceiling on any one request's wall-clock budget.
+    private let timeoutCap: TimeInterval?
 
     public init() {
         self.init(protocolClasses: nil)
+    }
+
+    /// A fetcher whose requests never outlast `timeoutCap` seconds, whatever
+    /// a source's budget allows: a paste flow showing a spinner wants a
+    /// shorter wait than a background import does. Clamped to 1 ...
+    /// `ELVFetchBudget.timeoutCeiling`.
+    public init(timeoutCap: TimeInterval) {
+        self.init(protocolClasses: nil, timeoutCap: timeoutCap)
     }
 
     /// Internal for tests: a stub `URLProtocol` stands in for the network so
@@ -19,7 +29,8 @@ public struct ELVHTTPFetcher: ELVFetching, Sendable {
     /// cookies off (no session sharing with anything the user is
     /// logged into), and its resource timeout is the budget ceiling so a
     /// transfer outlasting every per-request bound still ends.
-    init(protocolClasses: [AnyClass]?) {
+    init(protocolClasses: [AnyClass]?, timeoutCap: TimeInterval? = nil) {
+        self.timeoutCap = timeoutCap.map { $0.isFinite ? min(max($0, 1), ELVFetchBudget.timeoutCeiling) : ELVFetchBudget.timeoutCeiling }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpAdditionalHeaders = nil
         configuration.httpCookieAcceptPolicy = .never
@@ -39,8 +50,10 @@ public struct ELVHTTPFetcher: ELVFetching, Sendable {
         persona: ELVUAPersona,
         referer: URL?,
         accept: String?,
-        budget: ELVFetchBudget
+        budget requested: ELVFetchBudget
     ) async throws -> ELVFetchResponse {
+        var budget = requested
+        if let timeoutCap { budget.timeout = min(budget.timeout, timeoutCap) }
         let deadline = ContinuousClock.now + .seconds(budget.timeout)
         var request = try Self.request(for: url, budget: budget)
         request.setValue(persona.headerValue, forHTTPHeaderField: "User-Agent")

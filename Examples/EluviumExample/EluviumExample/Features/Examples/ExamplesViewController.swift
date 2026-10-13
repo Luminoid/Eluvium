@@ -4,7 +4,8 @@ import SnapKit
 import UIKit
 
 /// The pack's example corpus as a full-page tap-to-run browser: one
-/// section per active source, each row one of its example links. Tapping a
+/// section per catalog family, each row one example link under its
+/// provider (`ExampleCorpus`). Tapping a
 /// row resolves it through the live pipeline right here, with the result in
 /// a panel at the bottom of the page (beside the list on regular width), so
 /// the corpus and what each parser produces stay visible together.
@@ -315,7 +316,7 @@ extension ExamplesViewController: UITableViewDataSource {
     }
 
     func tableView(_: UITableView, titleForHeaderInSection section: Int) -> String? {
-        "\(sections[section].title)\(Separator.dot)\(sections[section].kind)"
+        sections[section].title
     }
 
     func tableView(_: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -324,7 +325,8 @@ extension ExamplesViewController: UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: LMKListTable.cellReuseIdentifier, for: indexPath)
-        let example = sections[indexPath.section].rows[indexPath.row]
+        let row = sections[indexPath.section].rows[indexPath.row]
+        let example = row.example
         var expectations: [String] = []
         if let kind = example.expectedKind { expectations.append("kind \(kind)") }
         expectations.append(contentsOf: example.expectedNonEmpty)
@@ -332,10 +334,11 @@ extension ExamplesViewController: UITableViewDataSource {
         // Every row runs: the system highlight and the pointer hover stay on.
         cell.lmk_applyListRow(
             LMKListRowConfiguration(
-                title: example.input,
-                subtitle: expectations.isEmpty ? nil : "expects \(expectations.joined(separator: ", "))",
+                title: "\(row.provider)\(Separator.dot)\(row.kind)",
+                subtitle: ([example.input] + (expectations.isEmpty ? [] : ["expects \(expectations.joined(separator: ", "))"]))
+                    .joined(separator: "\n"),
                 trailing: .none,
-                style: LMKListRowConfiguration.Style(titleTextStyle: .caption, titleLines: 2)
+                style: LMKListRowConfiguration.Style(subtitleTextStyle: .caption, titleLines: 1, subtitleLines: 4)
             ),
             backgroundColor: LMKColor.backgroundSecondary
         )
@@ -377,6 +380,6 @@ extension ExamplesViewController: UITableViewDelegate {
 
     private func example(at indexPath: IndexPath) -> ELVExample? {
         guard sections.indices.contains(indexPath.section), sections[indexPath.section].rows.indices.contains(indexPath.row) else { return nil }
-        return sections[indexPath.section].rows[indexPath.row]
+        return sections[indexPath.section].rows[indexPath.row].example
     }
 }

@@ -60,6 +60,22 @@ struct ELVJSONLDPlaceNodeTests {
     }
 
     @Test
+    func `An address whose street line already holds the rest is not repeated`() throws {
+        let repeated = try #require(ELVRawJSON.parse(Data("""
+        {"@type": "PostalAddress", "streetAddress": "10 Bayfront Avenue, Marina Bay, 018956 Singapore, Singapore",
+         "addressRegion": "10 Bayfront Avenue", "postalCode": "018956", "addressCountry": "Singapore"}
+        """.utf8)))
+        #expect(ELVJSONLDPlaceNode.addressString(from: repeated) == "10 Bayfront Avenue, Marina Bay, 018956 Singapore, Singapore")
+        // A city inside a street name is a different piece, and a postal
+        // code only inside a longer number is not repeated: both stay.
+        let distinct = try #require(ELVRawJSON.parse(Data("""
+        {"@type": "PostalAddress", "streetAddress": "5 Paris Street, Unit 175001", "addressLocality": "Paris",
+         "postalCode": "75001", "addressCountry": "FR"}
+        """.utf8)))
+        #expect(ELVJSONLDPlaceNode.addressString(from: distinct) == "5 Paris Street, Unit 175001, Paris, 75001, FR")
+    }
+
+    @Test
     func `Non-finite and out-of-range coordinates are absent, and a record built from a valid node encodes`() throws {
         for latitude in ["\"NaN\"", "\"inf\"", "\"-Infinity\"", "200", "-91"] {
             let node = try #require(ELVRawJSON.parse(Data("{\"@type\": \"Restaurant\", \"geo\": {\"latitude\": \(latitude), \"longitude\": 10}}".utf8)))

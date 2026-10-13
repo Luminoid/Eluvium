@@ -122,11 +122,18 @@ struct ELVNoneFetchTests {
         }
     }
 
+    /// The place page answering with nothing: the URL step's fields stand.
+    private struct EmptyPageFetcher: ELVFetching {
+        func fetch(_ url: URL, persona _: ELVUAPersona, referer _: URL?, accept _: String?, budget _: ELVFetchBudget) async throws -> ELVFetchResponse {
+            ELVFetchResponse(finalURL: url, status: 200, data: Data("<html></html>".utf8), bodyText: "<html></html>", truncated: false)
+        }
+    }
+
     @Test
-    func `The gmaps place source extracts a record from the URL alone`() async throws {
+    func `The gmaps sources extract a record from the URL, an empty page adding nothing`() async throws {
         ELVStubChase.register()
         let pack = try ELVPackLoader.load(embedded: Data(ELVStarterPack.json.utf8), capabilities: ELVCapabilities(fetchModes: ["http", "json", "archive", "feed"], binaryVersion: "0.1"))
-        let pipeline = ELVPipeline(pack: pack, fetcher: TrappingFetcher())
+        let pipeline = ELVPipeline(pack: pack, fetcher: EmptyPageFetcher())
 
         let pinned = try #require(URL(string: "https://www.google.com/maps/place/Jenny+Lake/@43.7904,-110.7624,15z/data=!8m2!3d43.7911!4d-110.7622"))
         let result = await pipeline.run(url: pinned).result
@@ -139,9 +146,11 @@ struct ELVNoneFetchTests {
         #expect(record.fields["geo"] == .geo(latitude: 43.7911, longitude: -110.7622))
         #expect(record.fields["viewport"] == .geo(latitude: 43.7904, longitude: -110.7624))
 
-        // The `?q=` share form: name + locality, viewport-only never pins.
+        // The `?q=` share form is the share source's: name + locality from
+        // the URL, viewport-only never pins, and with no renderer injected
+        // its capture step is skipped rather than failing the run.
         let query = try #require(URL(string: "https://maps.google.com/maps?q=Grand+Prismatic+Spring+Overlook,+Yellowstone+National+Park,+WY&ftid=0x5351eb:0"))
-        let queryResult = await pipeline.run(url: query).result
+        let queryResult = await ELVPipeline(pack: pack, fetcher: TrappingFetcher()).run(url: query).result
         guard case let .record(queryRecord) = queryResult else {
             Issue.record("Expected a record, got \(queryResult)")
             return

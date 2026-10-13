@@ -9,6 +9,11 @@ public struct ELVEscalationTrigger: Sendable, Decodable, Equatable {
     public var status: [Int]
     public var emptyRecord: Bool
     public var missingAny: [String]
+    /// Fires when any named field is missing or weak (schemaMinor 5): empty,
+    /// the source's own brand, or a bare country name. A Maps link whose
+    /// URL label is just "Japan" still fetches the page that names the
+    /// place, where `missingAny` would stop at the country.
+    public var weakAny: [String]
     public var anyOf: [Self]
     /// Exact-or-subdomain host patterns; when non-empty, the step runs only
     /// for input URLs whose host matches one. Top-level only — inside
@@ -23,10 +28,20 @@ public struct ELVEscalationTrigger: Sendable, Decodable, Equatable {
     /// inert.
     public var ref: String?
 
-    public init(status: [Int] = [], emptyRecord: Bool = false, missingAny: [String] = [], anyOf: [Self] = [], hostMatches: [String] = [], pathRegex: String? = nil, ref: String? = nil) {
+    public init(
+        status: [Int] = [],
+        emptyRecord: Bool = false,
+        missingAny: [String] = [],
+        weakAny: [String] = [],
+        anyOf: [Self] = [],
+        hostMatches: [String] = [],
+        pathRegex: String? = nil,
+        ref: String? = nil
+    ) {
         self.status = status
         self.emptyRecord = emptyRecord
         self.missingAny = missingAny
+        self.weakAny = weakAny
         self.anyOf = anyOf
         self.hostMatches = hostMatches
         self.pathRegex = pathRegex
@@ -45,6 +60,7 @@ public struct ELVEscalationTrigger: Sendable, Decodable, Equatable {
             status: container.elvIntList(forKey: .init("status")),
             emptyRecord: container.decodeIfPresent(Bool.self, forKey: .init("emptyRecord")) ?? false,
             missingAny: container.elvStringList(forKey: .init("missingAny")),
+            weakAny: container.elvStringList(forKey: .init("weakAny")),
             anyOf: container.decodeIfPresent([Self].self, forKey: .init("anyOf")) ?? [],
             hostMatches: container.elvStringList(forKey: .init("hostMatches")),
             pathRegex: container.decodeIfPresent(String.self, forKey: .init("pathRegex"))
@@ -59,11 +75,11 @@ public struct ELVEscalationTrigger: Sendable, Decodable, Equatable {
         ref == nil && hostMatches.isEmpty && pathRegex == nil && !hasResponseConditions
     }
 
-    /// Whether any status/emptyRecord/missingAny condition exists here or in
-    /// `anyOf`. A trigger without them is a pure URL gate: its step runs
-    /// whenever the shape permits, first step included.
+    /// Whether any status/emptyRecord/missingAny/weakAny condition exists
+    /// here or in `anyOf`. A trigger without them is a pure URL gate: its
+    /// step runs whenever the shape permits, first step included.
     public var hasResponseConditions: Bool {
-        !status.isEmpty || emptyRecord || !missingAny.isEmpty || anyOf.contains(where: \.hasResponseConditions)
+        !status.isEmpty || emptyRecord || !missingAny.isEmpty || !weakAny.isEmpty || anyOf.contains(where: \.hasResponseConditions)
     }
 
     /// Whether the URL-shape precondition admits `url`. Evaluated against
@@ -80,14 +96,19 @@ public struct ELVEscalationTrigger: Sendable, Decodable, Equatable {
         return true
     }
 
-    /// Whether this trigger fires for the previous step's outcome.
-    public func fires(status previousStatus: Int, extractedFields: [String: ELVValue]) -> Bool {
+    /// Whether this trigger fires for the previous step's outcome. `brand`
+    /// is the source's brand (its `title`), which `weakAny` treats as weak.
+    public func fires(status previousStatus: Int, extractedFields: [String: ELVValue], brand: String? = nil) -> Bool {
         if !anyOf.isEmpty {
-            return anyOf.contains { $0.fires(status: previousStatus, extractedFields: extractedFields) }
+            return anyOf.contains { $0.fires(status: previousStatus, extractedFields: extractedFields, brand: brand) }
         }
         if status.contains(previousStatus) { return true }
         if emptyRecord, extractedFields.isEmpty { return true }
         if !missingAny.isEmpty, missingAny.contains(where: { extractedFields[$0] == nil }) { return true }
+        if !weakAny.isEmpty, weakAny.contains(where: { name in
+            guard let text = extractedFields[name].flatMap({ ELVSelectorEngine.stringForm(of: $0)?.singleString }) else { return true }
+            return ELVLabelResolver.isWeak(text, brand: brand)
+        }) { return true }
         return false
     }
 }
@@ -136,6 +157,11 @@ public struct ELVFetchStep: Sendable, Decodable, Equatable {
     public var settle: ELVSettlePolicy?
     /// `dom` mode: canonical-URL capture.
     public var captureCanonical: ELVCanonicalCapture?
+    /// `dom` mode (schemaMinor 5): named rendered-text regions to read
+    /// (`ELVDOMRegion`: `h1`, `header`, `body`), landing in the document's
+    /// `cssResults` under `@h1` / `@header` / `@body` for native ops. Unknown
+    /// names are ignored with a validator note.
+    public var regions: [String]
 
     public init(
         mode: String,
@@ -149,7 +175,8 @@ public struct ELVFetchStep: Sendable, Decodable, Equatable {
         fields: [ELVFieldSpec]? = nil,
         collections: [ELVCollectionSpec]? = nil,
         settle: ELVSettlePolicy? = nil,
-        captureCanonical: ELVCanonicalCapture? = nil
+        captureCanonical: ELVCanonicalCapture? = nil,
+        regions: [String] = []
     ) {
         self.mode = mode
         self.ua = ua
@@ -163,10 +190,11 @@ public struct ELVFetchStep: Sendable, Decodable, Equatable {
         self.collections = collections
         self.settle = settle
         self.captureCanonical = captureCanonical
+        self.regions = regions
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mode, ua, url, referer, format, when, jsonIsland, maxBytes, fields, collections, settle, captureCanonical
+        case mode, ua, url, referer, format, when, jsonIsland, maxBytes, fields, collections, settle, captureCanonical, regions
     }
 
     public init(from decoder: Decoder) throws {
@@ -188,6 +216,24 @@ public struct ELVFetchStep: Sendable, Decodable, Equatable {
         // A malformed capture drops the capture, never the whole source
         //: the step still fetches, only the canonical-URL watch is lost.
         captureCanonical = (try? container.decodeIfPresent(ELVCanonicalCapture.self, forKey: .captureCanonical)) ?? nil
+        regions = try container.elvStringList(forKey: .regions)
+    }
+
+    /// Whether this step runs for an input, given what the steps before it
+    /// did: the URL-shape precondition (`when.hostMatches` / `pathRegex`)
+    /// scopes the step from the first step on, and response conditions gate
+    /// only a step after one that produced. A dangling named-trigger
+    /// reference never admits. The one rule the pipeline and the offline
+    /// preview share, so a preview's "a fetch would run" never disagrees
+    /// with the run.
+    public func permits(url: URL, didProduce: Bool, lastStatus: Int, extracted: [String: ELVValue], brand: String? = nil) -> Bool {
+        guard let trigger = when else { return true }
+        if trigger.ref != nil { return false }
+        guard trigger.urlPermits(url) else { return false }
+        if didProduce, trigger.hasResponseConditions {
+            return trigger.fires(status: lastStatus, extractedFields: extracted, brand: brand)
+        }
+        return true
     }
 
     /// The pack-numeric clamp for byte budgets: non-positive degrades
@@ -215,6 +261,8 @@ public struct ELVFetchPlan: Sendable, Decodable, Equatable {
     public var steps: [ELVFetchStep]
     public var settle: ELVSettlePolicy?
     public var captureCanonical: ELVCanonicalCapture?
+    /// A single-mode dom plan's regions, lifted into its one step.
+    public var regions: [String]
 
     public init(
         mode: String,
@@ -226,7 +274,8 @@ public struct ELVFetchPlan: Sendable, Decodable, Equatable {
         maxBytes: Int? = nil,
         steps: [ELVFetchStep] = [],
         settle: ELVSettlePolicy? = nil,
-        captureCanonical: ELVCanonicalCapture? = nil
+        captureCanonical: ELVCanonicalCapture? = nil,
+        regions: [String] = []
     ) {
         self.mode = mode
         self.ua = ua
@@ -238,6 +287,7 @@ public struct ELVFetchPlan: Sendable, Decodable, Equatable {
         self.steps = steps
         self.settle = settle
         self.captureCanonical = captureCanonical
+        self.regions = regions
     }
 
     /// `mode` is required in spirit: a plan that omits it decodes as
@@ -257,17 +307,37 @@ public struct ELVFetchPlan: Sendable, Decodable, Equatable {
         // Same containment as the step-level site: a bad capture costs the
         // capture only.
         captureCanonical = (try? container.decodeIfPresent(ELVCanonicalCapture.self, forKey: .init("captureCanonical"))) ?? nil
+        regions = try container.elvStringList(forKey: .init("regions"))
     }
 
     /// The flat step list: a single-mode plan is one step.
     public var resolvedSteps: [ELVFetchStep] {
         if mode == ELVFetchModes.composite, !steps.isEmpty { return steps }
-        return [ELVFetchStep(mode: mode, ua: ua, url: url, referer: referer, format: format, jsonIsland: jsonIsland, maxBytes: maxBytes, settle: settle, captureCanonical: captureCanonical)]
+        let step = ELVFetchStep(
+            mode: mode, ua: ua, url: url, referer: referer, format: format, jsonIsland: jsonIsland,
+            maxBytes: maxBytes, settle: settle, captureCanonical: captureCanonical, regions: regions
+        )
+        return [step]
     }
 
-    /// Every fetch mode this plan can use (capability gating). `none` needs
-    /// no capability: every binary can extract from the URL alone.
+    /// Every fetch mode this plan can use. `none` needs no capability:
+    /// every binary can extract from the URL alone.
     public var requiredModes: Set<String> {
         Set(resolvedSteps.map(\.mode)).subtracting([ELVFetchModes.none])
+    }
+
+    /// The modes a binary must provide to load the source at all (capability
+    /// gating): the first step's, and every step that always runs. A
+    /// conditional step after the first (an escalation behind `when`) only
+    /// degrades without its mode — the pipeline skips a step it cannot run,
+    /// so a binary without WebKit keeps the source's http rung instead of
+    /// losing the source. A step that declares no mode always gates
+    /// (`ELVFetchModes.unsupported`, which no binary provides): a missing
+    /// transport is an authoring error, never a silent skip.
+    public var gatingModes: Set<String> {
+        let gating = resolvedSteps.enumerated().filter { index, step in
+            index == 0 || step.when == nil || step.mode == ELVFetchModes.unsupported
+        }.map(\.element.mode)
+        return Set(gating).subtracting([ELVFetchModes.none])
     }
 }

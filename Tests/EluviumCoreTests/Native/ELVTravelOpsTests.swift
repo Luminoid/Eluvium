@@ -152,6 +152,14 @@ struct ELVMapsMetaClassifierTests {
     }
 
     @Test
+    func `A bare Google Maps title names no place`() {
+        // A page with no place behind it (a region-served shell) carries
+        // only the product's title.
+        #expect(ELVMapsMetaClassifier.classify(title: "Google Maps", description: nil).name == nil)
+        #expect(ELVMapsMetaClassifier.classify(title: "Google Maps HQ · 1600 Amphitheatre Pkwy", description: nil).name == "Google Maps HQ")
+    }
+
+    @Test
     func `Word-bounded keywords keep parking lots out of parks`() {
         #expect(ELVMapsMetaClassifier.category(forTypeText: "Parking lot") == nil)
         #expect(ELVMapsMetaClassifier.category(forTypeText: "National park") == "attraction")

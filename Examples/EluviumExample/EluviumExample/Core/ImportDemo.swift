@@ -133,7 +133,7 @@ enum CatalogImport {
     }
 
     static func headerTitle(for source: ELVSource) -> String {
-        source.title ?? source.id
+        source.displayName
     }
 
     /// A row's primary line: its title, else its id.

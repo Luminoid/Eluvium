@@ -56,9 +56,14 @@ struct ELVPackLoaderTests {
         let capabilities = ELVCapabilities(fetchModes: ["http", "json", "archive", "composite"], binaryVersion: "0.1")
         let loaded = try ELVPackLoader.load(embedded: Data(packJSON.utf8), capabilities: capabilities)
         #expect(loaded.pack.schemaMinor == 4)
-        #expect(loaded.sources.map(\.id) == ["komoot.tour"])
-        #expect(loaded.skipped.map(\.id).sorted() == ["alltrails.trail", "future.source", "too.new"])
-        #expect(loaded.skipped.first { $0.id == "alltrails.trail" }?.reason.contains("dom") == true)
+        // A conditional dom escalation degrades without the mode instead of
+        // costing the source: alltrails keeps its http rung.
+        #expect(loaded.sources.map(\.id) == ["alltrails.trail", "komoot.tour"])
+        #expect(loaded.skipped.map(\.id).sorted() == ["future.source", "too.new"])
+        #expect(loaded.source(withId: "alltrails.trail")?.fetch?.gatingModes == ["http"])
+        // A dom step that always runs still gates.
+        let alwaysRenders = ELVFetchPlan(mode: "composite", steps: [ELVFetchStep(mode: "http"), ELVFetchStep(mode: "dom")])
+        #expect(alwaysRenders.gatingModes == ["http", "dom"])
         #expect(loaded.skipped.first { $0.id == "too.new" }?.reason.contains("99.0") == true)
     }
 

@@ -29,6 +29,14 @@ public final class ELVWebViewRenderer: NSObject, ELVDOMRendering {
     /// watchdog early nor holds it open.
     private let watchdogSeconds: Double
 
+    /// How long the pooled webview may sit idle before it is released (its
+    /// WebContent and Networking processes with it); nil keeps it until a
+    /// memory warning or deinit.
+    private let idleTeardownSeconds: Double?
+
+    /// The pending idle release, cancelled by the next render.
+    private var idleTeardown: Task<Void, Never>?
+
     /// The pooled webview (see the type comment); nil until the first
     /// render and after a memory-warning eviction.
     private var pooledWebView: WKWebView?
@@ -71,11 +79,15 @@ public final class ELVWebViewRenderer: NSObject, ELVDOMRendering {
     /// stale-pool sequences without a network load.
     var urlProbeOverride: ((WKWebView) -> URL?)?
 
-    public init(watchdogSeconds: Double = 30) {
+    /// `idleTeardownSeconds` releases the pooled webview once no render has
+    /// run for that long (a paste flow renders in bursts, then sits idle);
+    /// nil keeps it pooled until a memory warning.
+    public init(watchdogSeconds: Double = 30, idleTeardownSeconds: Double? = nil) {
         // Bounded before it becomes a `Duration` (which traps on a
         // non-finite or out-of-range value): a century, the package's
         // duration ceiling.
         self.watchdogSeconds = watchdogSeconds.isFinite ? min(max(watchdogSeconds, 0), ELVBounds.centurySeconds) : ELVBounds.centurySeconds
+        self.idleTeardownSeconds = idleTeardownSeconds.map { $0.isFinite ? min(max($0, 1), ELVBounds.centurySeconds) : ELVBounds.centurySeconds }
         super.init()
         #if canImport(UIKit)
             memoryWarningObserver = NotificationCenter.default.addObserver(
@@ -96,6 +108,7 @@ public final class ELVWebViewRenderer: NSObject, ELVDOMRendering {
         // runs the tail has completed; cancelling is bookkeeping, not
         // teardown.
         renderTail?.cancel()
+        idleTeardown?.cancel()
     }
 
     public nonisolated func render(_ request: ELVDOMRequest) async throws -> ELVDOMResult {
@@ -139,6 +152,9 @@ public final class ELVWebViewRenderer: NSObject, ELVDOMRendering {
     // MARK: - Render
 
     private func renderOnMain(_ request: ELVDOMRequest) async throws -> ELVDOMResult {
+        idleTeardown?.cancel()
+        idleTeardown = nil
+        defer { scheduleIdleTeardown() }
         let webView = await preparedWebView(userAgent: request.userAgent)
         // Teardown parks the webview on about:blank as well as stopping the
         // load: an in-flight `evaluateJavaScript`'s strong capture would
@@ -513,6 +529,23 @@ public final class ELVWebViewRenderer: NSObject, ELVDOMRendering {
     /// next render, which recreates the pool.
     private func evictPooledWebView() {
         pooledWebView = nil
+    }
+
+    /// Arms the idle release after a render. Renders are serialized, so the
+    /// next one cancels this before it touches the pool.
+    private func scheduleIdleTeardown() {
+        guard let idleTeardownSeconds else { return }
+        idleTeardown?.cancel()
+        idleTeardown = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(idleTeardownSeconds))
+            guard !Task.isCancelled else { return }
+            self?.evictPooledWebView()
+        }
+    }
+
+    /// Internal for tests: whether a webview is pooled right now.
+    var hasPooledWebView: Bool {
+        pooledWebView != nil
     }
 
     // MARK: - Helpers

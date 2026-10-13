@@ -18,6 +18,7 @@ import Foundation
 /// a name inside `anyOf` is inert), and the steps walked are the ones that
 /// run — the source's own fetch, or, when it declares none, the first `use`d
 /// fragment's (a fragment's fetch never fills a source that has one).
+/// Redirector `previewAs` hints keep only targets inside the subset.
 /// Including every referenced fragment/trigger and no unreferenced one keeps
 /// the subset free of the dangling/unused diagnostics the loader and
 /// validator emit; a closure-correct subset loads clean.
@@ -74,7 +75,17 @@ public enum ELVPackSubset {
             let kept = strong.filter(declared.contains)
             if !kept.isEmpty { result["strongNamespaces"] = kept }
         }
-        result["sources"] = selected
+        // A redirector's preview hints name sources the subset may have
+        // dropped; keep only the hints whose target came along (an absent
+        // target is a dangling reference the validator would name).
+        let selectedIds = Set(selected.compactMap { $0["id"] as? String })
+        result["sources"] = selected.map { source -> [String: Any] in
+            guard let hints = source["previewAs"] as? [String: String] else { return source }
+            var pruned = source
+            let kept = hints.filter { selectedIds.contains($0.value) }
+            pruned["previewAs"] = kept.isEmpty ? nil : kept
+            return pruned
+        }
 
         return try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
     }

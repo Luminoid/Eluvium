@@ -3,9 +3,11 @@ import LumiKitUI
 import SnapKit
 import UIKit
 
-/// Screen ①: one paste box over the whole pipeline. Recognize → fetch →
-/// extract → assemble, then the record as a field table with provenance and
-/// typed failure states. The framework's parity is demonstrated by hand here.
+/// Screen ①: one paste box over the whole pipeline. As text lands, the
+/// pack's offline preview names the record (label, source, what a run would
+/// add) with no network; Resolve then runs recognize → fetch → extract →
+/// assemble with the share text riding along, and shows the record as a
+/// field table with provenance and typed failure states.
 ///
 /// Built on LumiKit's scroll stack, whose readable-width pinning reads the
 /// scroll view's own guide, so the page holds still during the iOS 26
@@ -14,15 +16,24 @@ final class PasteViewController: LMKScrollStackViewController {
     // MARK: - Properties
 
     private var runTask: Task<Void, Never>?
+    /// Waits out the pack load, then previews the box's current text.
+    private var previewTask: Task<Void, Never>?
 
     private lazy var inputField: LMKTextView = {
         let field = LMKTextView()
-        field.placeholder = "Paste a link (Wikipedia, PokéAPI, a Six Flags ride, an IMDb title, or any URL)"
+        field.placeholder = "Paste a link, or share text with one in it (Wikipedia, PokéAPI, an IMDb title, a Maps place, or any URL)"
         field.textView.autocorrectionType = .no
         field.textView.autocapitalizationType = .none
         field.textView.keyboardType = .URL
+        field.onTextChange = { [weak self] _ in
+            self?.schedulePreview()
+        }
         return field
     }()
+
+    /// The offline preview line under the box: silent, since it updates on
+    /// every keystroke.
+    private let previewLine = LMKStatusLabel()
 
     private lazy var resolveButton = LMKButton(title: "Resolve", style: .filled(.primary), target: self, action: #selector(resolveTapped))
 
@@ -56,12 +67,14 @@ final class PasteViewController: LMKScrollStackViewController {
 
     isolated deinit {
         runTask?.cancel()
+        previewTask?.cancel()
     }
 
     // MARK: - Setup
 
     override func setupStackContent() {
         stackView.addArrangedSubview(inputField)
+        stackView.addArrangedSubview(previewLine)
         stackView.addArrangedSubview(resolveButton)
         stackView.addArrangedSubview(examplesButton)
         stackView.addArrangedSubview(recordPanel)
@@ -75,9 +88,8 @@ final class PasteViewController: LMKScrollStackViewController {
 
     @objc private func resolveTapped() {
         view.endEditing(true)
-        let raw = (inputField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = InputParser.firstURL(in: raw) else {
-            recordPanel.status.showOutcome("That doesn't look like a URL yet.", status: .warning)
+        guard let input = InputParser.input(in: inputField.text ?? "", policy: ExampleStore.shared.pastePolicy) else {
+            recordPanel.status.showOutcome("That doesn't look like a link yet.", status: .warning)
             return
         }
         runTask?.cancel()
@@ -85,7 +97,7 @@ final class PasteViewController: LMKScrollStackViewController {
         // affordances live: clear the panel before running.
         recordPanel.clear()
         setBusy(true)
-        runTask = ResolveFlow.run(.url(url, example: nil), status: recordPanel.status, onRecord: { [weak self] record in
+        runTask = ResolveFlow.run(.paste(input), status: recordPanel.status, onRecord: { [weak self] record in
             guard let self else { return }
             recordPanel.status.clear()
             recordPanel.present(record)
@@ -101,6 +113,27 @@ final class PasteViewController: LMKScrollStackViewController {
     }
 
     // MARK: - UI Updates
+
+    /// Previews the box's text once the starter pack is in (an instant
+    /// return after the first load), so a paste in the first second after
+    /// launch still gets its line.
+    private func schedulePreview() {
+        previewTask?.cancel()
+        previewTask = Task { [weak self] in
+            await ExampleStore.shared.ready()
+            guard let self, !Task.isCancelled else { return }
+            let text = inputField.text ?? ""
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                previewLine.clear()
+                return
+            }
+            guard let input = InputParser.input(in: text, policy: ExampleStore.shared.pastePolicy) else {
+                previewLine.show("Not a link yet.", status: .neutral)
+                return
+            }
+            previewLine.show(PreviewCopy.line(for: ExampleStore.shared.preview(input)), status: .neutral)
+        }
+    }
 
     private func setBusy(_ busy: Bool) {
         // LMKButton's loading state is the design system's busy affordance:
@@ -136,5 +169,33 @@ enum RecordPageStyle {
             // the last row clear.
             bottomAnchor: .superview
         )
+    }
+}
+
+/// The Paste screen's preview line: the record's name, the source that
+/// recognized the link, and what Resolve would still add.
+enum PreviewCopy {
+    static func line(for preview: ELVPreview) -> String {
+        var parts: [String] = []
+        if let name = preview.record.displayTitle, !name.isEmpty {
+            parts.append(name)
+        }
+        switch (preview.sourceId, preview.provisionalSourceId) {
+        case let (source?, provisional?): parts.append("\(provisional), via \(source)")
+        case let (source?, nil): parts.append(source)
+        case (nil, _): parts.append("no source matched")
+        }
+        let steps = steps(for: preview.pending)
+        parts.append(steps.isEmpty ? "complete offline" : "Resolve will \(ListFormatter.localizedString(byJoining: steps))")
+        return "Preview: " + parts.joined(separator: Separator.dot)
+    }
+
+    private static func steps(for pending: ELVPreviewPending) -> [String] {
+        var steps: [String] = []
+        if pending.contains(.redirect) { steps.append("follow the short link") }
+        if pending.contains(.fetch) { steps.append("fetch the page") }
+        if pending.contains(.floor) { steps.append("read the page") }
+        if pending.contains(.platformLookup) { steps.append("look the place up") }
+        return steps
     }
 }

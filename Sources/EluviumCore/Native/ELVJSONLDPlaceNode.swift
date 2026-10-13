@@ -88,15 +88,41 @@ enum ELVJSONLDPlaceNode {
     }
 
     /// A formatted address from either a plain string or a schema.org
-    /// PostalAddress object.
+    /// PostalAddress object. Some sites put the whole address in
+    /// `streetAddress` and repeat its pieces in the other keys, so a part
+    /// already present is skipped: one equal to a comma-separated piece so
+    /// far, or a postal code that already appears as a whole word.
     static func addressString(from value: ELVRawJSON?) -> String? {
         guard let value else { return nil }
         if value.stringValue != nil { return asString(value) }
         guard value.objectValue != nil else { return asString(value) }
-        let parts = ["streetAddress", "addressLocality", "addressRegion", "postalCode", "addressCountry"]
-            .compactMap { asString(value[$0]) }
+        var parts: [String] = []
+        for key in ["streetAddress", "addressLocality", "addressRegion", "postalCode", "addressCountry"] {
+            guard let part = asString(value[key]) else { continue }
+            let pieces = parts.flatMap { $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } }
+            if pieces.contains(where: { $0.caseInsensitiveCompare(part) == .orderedSame }) { continue }
+            if key == "postalCode", parts.contains(where: { containsWord(part, in: $0) }) { continue }
+            parts.append(part)
+        }
         let joined = parts.joined(separator: ", ")
         return joined.isEmpty ? nil : joined
+    }
+
+    /// Whether `word` occurs in `text` with no letter or digit on either
+    /// side ("018956" in "018956 Singapore", not in "1018956").
+    private static func containsWord(_ word: String, in text: String) -> Bool {
+        func isWordCharacter(_ character: Character?) -> Bool {
+            guard let character else { return false }
+            return character.isLetter || character.isNumber
+        }
+        var searchStart = text.startIndex
+        while let range = text.range(of: word, options: .caseInsensitive, range: searchStart ..< text.endIndex) {
+            let before = range.lowerBound > text.startIndex ? text[text.index(before: range.lowerBound)] : nil
+            let after = range.upperBound < text.endIndex ? text[range.upperBound] : nil
+            if !isWordCharacter(before), !isWordCharacter(after) { return true }
+            searchStart = range.upperBound
+        }
+        return false
     }
 
     /// (latitude, longitude) from a `geo` GeoCoordinates child, or top-level

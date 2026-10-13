@@ -117,15 +117,15 @@ struct ELVPlacesOpsTests {
 
         let result = try await ELVExtractor.extractAsync(fields: source.fields, context: ELVExtractionContext(url: url, params: recognition.params))
         #expect(result.values["title"] == .text("Benu"))
-        // The match's own coordinate refines the pin — the pin validated it
-        // (TripDays fillPlaceDetails / Petfolio vet-contact parity).
-        #expect(result.values["geo"] == .geo(latitude: 37.7855, longitude: -122.3994))
+        // The URL's own pin stands (the place IS where the link points); the
+        // match fills what the URL lacked.
+        #expect(result.values["geo"] == .geo(latitude: 37.7854, longitude: -122.3993))
         #expect(result.values["address"] == .text("22 Hawthorne St, San Francisco"))
         // A place-path URL with no comma segments has no URL-derived
         // locality; the lookup's placemark fills it (the COIN DE RUE case).
         #expect(result.values["locality"] == .text("San Francisco"))
         #expect(result.values["phone"] == .text("+1 415-685-4860"))
-        #expect(result.values["category"] == .text("MKPOICategoryRestaurant"))
+        #expect(result.values["poiCategory"] == .text("MKPOICategoryRestaurant"))
     }
 
     @Test
@@ -157,5 +157,32 @@ struct ELVPlacesOpsTests {
         // Viewport biases, never pins (geo.anchorLadder).
         #expect(result.values["geo"] == nil)
         #expect(result.values["viewport"] == .geo(latitude: 37.7854, longitude: -122.3993))
+    }
+}
+
+extension ELVPlacesOpsTests {
+    @Test
+    func `the v2 op emits a geo only off a trusted anchor`() async throws {
+        let lake = ELVGeocodedPlace(name: "Jenny Lake", latitude: 43.7520, longitude: -110.7270, phone: "+1 307", category: "MKPOICategoryNationalPark", region: "WY")
+        ELVPlacesOps.register(searcher: StubSearch(results: [lake]), geocoder: NoGeocoder())
+        let op = try #require(ELVNativeOps.lookupAsync("place.mapKitLookup@2"))
+        let anchored = try #require(try await op(["name": "Jenny Lake", "urlLat": "43.765", "urlLng": "-110.729"], ELVExtractionContext()))
+        #expect(anchored["geo"] == .geo(latitude: 43.7520, longitude: -110.7270))
+        #expect(anchored["origin"] == .text("urlPin"))
+        #expect(anchored["category"] == .text("MKPOICategoryNationalPark"))
+        let hinted = try #require(try await op(["name": "Jenny Lake", "viewportLat": "43.75", "viewportLng": "-110.72"], ELVExtractionContext()))
+        #expect(hinted["geo"] == nil)
+        #expect(hinted["phone"] == .text("+1 307"))
+    }
+}
+
+/// A geocoder with no answers, for op registration in this serialized suite.
+private struct NoGeocoder: ELVGeocoding {
+    func forwardGeocode(_: String) async throws -> ELVGeocodedAddress? {
+        nil
+    }
+
+    func reverseGeocode(latitude _: Double, longitude _: Double) async throws -> ELVGeocodedAddress? {
+        nil
     }
 }

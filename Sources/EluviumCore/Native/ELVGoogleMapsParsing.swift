@@ -140,7 +140,7 @@ enum ELVGoogleMapsURL {
 /// "4-star hotel" doesn't misroute) / digits-or-commas address / bare
 /// locality. The "Find local businesses…" boilerplate description is dropped
 /// whole: its commas would read as an address, and a real place meta never
-/// names the product.
+/// names the product (nor does a bare "Google Maps" title name a place).
 enum ELVMapsMetaClassifier {
     struct Meta: Equatable {
         var name: String?
@@ -190,8 +190,10 @@ enum ELVMapsMetaClassifier {
             .filter { !$0.isEmpty }
         guard !segments.isEmpty else { return }
         if isTitle {
+            // A page with no place behind it carries the product's own
+            // title ("Google Maps"), which names nothing.
             let first = segments.removeFirst()
-            if meta.name == nil { meta.name = first }
+            if meta.name == nil, first.caseInsensitiveCompare("Google Maps") != .orderedSame { meta.name = first }
         }
         let hasRatingContext = segments.contains { isRatingSegment($0) || isStarGlyphSegment($0) }
         for segment in segments {

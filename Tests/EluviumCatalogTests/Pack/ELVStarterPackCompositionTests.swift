@@ -13,16 +13,17 @@ struct ELVStarterPackCompositionTests {
     /// The full roster in declaration order. Append new sources to their
     /// family chunk and to this pin in the same change.
     private static let orderedIds = [
-        "shortlinks.travel", "gmaps.place", "gmaps.place.mapkit", "gmaps.share", "applemaps.place",
+        "shortlinks.travel", "booking.share", "gmaps.directions", "gmaps.place", "gmaps.place.mapkit", "gmaps.share", "gmaps.applink",
+        "applemaps.place", "applemaps.place.mapkit", "applemaps.applink",
         "pokeapi.pokemon", "pokeapi.dex", "themeparks.entity", "wikipedia.article", "sixflags.attraction",
-        "alltrails.trail", "komoot.route", "flighty.flight", "flighttracker.flight",
+        "alltrails.trail", "komoot.route", "flighty.flight", "flighty.link", "flighty.applink", "flighttracker.flight",
         "x.post", "imdb.title", "spotify.media", "applemusic.album", "applepodcasts.show",
         "xiaoyuzhou.podcast", "youtube.video", "douban.subject", "goodreads.book", "igdb.game",
         "ign.game", "threads.post", "fragrantica.perfume", "reddit.subreddit", "youtube.channel", "mastodon.profile",
         "camera.lens", "camera.lens.sigma",
         "booking.lodging", "airbnb.lodging", "vrbo.lodging", "agoda.lodging", "expedia.lodging",
         "hostelworld.lodging", "hotels.lodging", "tripadvisor.review", "yelp.review",
-        "gyg.tour", "viator.tour", "klook.tour", "carrental.brands",
+        "gyg.tour", "viator.tour", "klook.tour", "dining.reservations", "carrental.brands",
         "xiaohongshu.post", "shortlinks.media",
         "inat.observation", "inat.taxon", "inat.user", "inat.export", "merlin.species", "allaboutbirds.guide", "ebird.mydata",
         "weread.book", "weread.review", "weread.notes",
@@ -75,7 +76,7 @@ struct ELVStarterPackCompositionTests {
 
     @Test
     func `The pack version and prologue survived the split`() {
-        #expect(ELVStarterPack.json.contains("\"packVersion\": \"2026.10.12-starter.1\""))
+        #expect(ELVStarterPack.json.contains("\"packVersion\": \"2026.10.13-starter.1\""))
         #expect(ELVStarterPack.json.hasPrefix("{\n  \"schemaVersion\": 1"))
     }
 

@@ -32,9 +32,22 @@ public enum ELVSelectorJSCompiler {
 
         return """
         (function () {
+          function capped(text, cap) {
+            var t = (text || "").trim();
+            return cap > 0 ? t.slice(0, cap) : t;
+          }
           function readAttr(el, attr) {
             if (!el) return null;
             if (attr === "text") return (el.textContent || "").trim();
+            if (attr === "innerText" || attr.indexOf("innerText:") === 0) {
+              return capped(el.innerText, parseInt(attr.split(":")[1] || "0", 10));
+            }
+            if (attr.indexOf("ancestorInnerText:") === 0) {
+              var parts = attr.split(":");
+              var node = el;
+              for (var up = parseInt(parts[1] || "0", 10); up > 0 && node.parentElement; up--) { node = node.parentElement; }
+              return capped(node.innerText, parseInt(parts[2] || "0", 10));
+            }
             if (attr === "html") return el.innerHTML || null;
             if (attr === "@href") return el.getAttribute("href");
             if (attr === "@src") return el.getAttribute("src");

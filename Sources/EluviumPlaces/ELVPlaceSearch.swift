@@ -16,8 +16,11 @@ public struct ELVGeocodedPlace: Sendable, Equatable {
     /// The backend's point-of-interest category, verbatim (an
     /// `MKPointOfInterestCategory` raw value for the MapKit backend).
     public var category: String?
+    /// The region above the locality (state, prefecture, or the country
+    /// when there is none), for `localitySubtitle`.
+    public var region: String?
 
-    public init(name: String, latitude: Double, longitude: Double, address: String? = nil, locality: String? = nil, phone: String? = nil, category: String? = nil) {
+    public init(name: String, latitude: Double, longitude: Double, address: String? = nil, locality: String? = nil, phone: String? = nil, category: String? = nil, region: String? = nil) {
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
@@ -25,6 +28,15 @@ public struct ELVGeocodedPlace: Sendable, Equatable {
         self.locality = locality
         self.phone = phone
         self.category = category
+        self.region = region
+    }
+
+    /// "City, Region" ("Moose, WY"), or whichever half exists.
+    public var localitySubtitle: String? {
+        let city = locality?.trimmingCharacters(in: .whitespaces)
+        let area = region?.trimmingCharacters(in: .whitespaces)
+        let parts = [city, area == city ? nil : area].compactMap { $0?.isEmpty == false ? $0 : nil }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 }
 
@@ -142,7 +154,14 @@ public struct ELVMapKitPlaceSearch: ELVPlaceSearching {
                 longitudinalMeters: radiusMeters * 2
             )
         }
-        let response = try await MKLocalSearch(request: request).start()
+        let response: MKLocalSearch.Response
+        do {
+            response = try await MKLocalSearch(request: request).start()
+        } catch let error as MKError where error.code == .placemarkNotFound {
+            // MapKit reports an empty answer as an error; the resolver must
+            // see "no results", not "MapKit failed".
+            return []
+        }
         return response.mapItems.map { item in
             let coordinate = item.placemark.coordinate
             return ELVGeocodedPlace(
@@ -152,7 +171,8 @@ public struct ELVMapKitPlaceSearch: ELVPlaceSearching {
                 address: item.placemark.title,
                 locality: item.placemark.locality,
                 phone: item.phoneNumber,
-                category: item.pointOfInterestCategory?.rawValue
+                category: item.pointOfInterestCategory?.rawValue,
+                region: item.placemark.administrativeArea ?? item.placemark.country
             )
         }
     }
@@ -168,6 +188,9 @@ public struct ELVPlaceResolver: Sendable {
         public var origin: ELVAnchorLadder.Origin?
         /// The matched place's metadata, nil when no search match passed.
         public var place: ELVGeocodedPlace?
+        /// A reverse-geocoded "City, Region" for the anchor, filled only by
+        /// `lookup` when nothing matched and the link carried no locality.
+        public var reverseLocality: String?
     }
 
     private let searcher: any ELVPlaceSearching
@@ -213,13 +236,78 @@ public struct ELVPlaceResolver: Sendable {
         return nil
     }
 
+    /// The `place.mapKitLookup@2` resolution: one anchored search whose
+    /// match is trusted by the anchor it was found against.
+    ///
+    /// - A URL pin anchors the search and the match must sit within
+    ///   `policy.pinMeters` of it.
+    /// - With no pin and a street-address `locality` (the coordinate-free
+    ///   `?q=name, address` share), the address is forward-geocoded through
+    ///   `geocoder` into an anchor (`ELVAddressAnchor.isPlausible` vetoes a
+    ///   junk geocode). The match must sit within `policy.addressMeters` of
+    ///   it, and on a miss the anchor itself is the pin. No valid anchor
+    ///   means no search: an unanchored search gambles on a same-named
+    ///   place anywhere, and a known address that won't geocode is exactly
+    ///   that gamble.
+    /// - A viewport only biases the search: its match fills metadata within
+    ///   `policy.pinMeters` but never the pin.
+    /// - With no anchor at all the search runs unbiased, for metadata only.
+    ///
+    /// On a miss with any anchor, `geocoder` reverse-geocodes the anchor
+    /// for the locality the link lacked.
+    public func lookup(
+        name: String,
+        locality: String?,
+        urlPin: ELVAnchorLadder.Point?,
+        viewport: ELVAnchorLadder.Point?,
+        policy: ELVPlaceLookupPolicy,
+        geocoder: (any ELVGeocoding)?
+    ) async throws -> Resolution? {
+        let trimmedLocality = locality?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = [name, trimmedLocality].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: ", ")
+        guard !query.isEmpty else { return nil }
+
+        var addressAnchor: ELVAnchorLadder.Point?
+        if urlPin == nil, let address = trimmedLocality, ELVAddressAnchor.looksLikeStreetAddress(address) {
+            guard let geocoder, let place = try await geocoder.forwardGeocode(address),
+                  ELVAddressAnchor.isPlausible(place, for: address)
+            else { return nil }
+            addressAnchor = ELVAnchorLadder.Point(latitude: place.latitude, longitude: place.longitude)
+        }
+        let trusted = urlPin ?? addressAnchor
+        let anchor = trusted ?? viewport
+        let radius = addressAnchor != nil ? policy.addressMeters : policy.pinMeters
+        let results = try await search(query, near: anchor, radiusMeters: policy.regionMeters / 2)
+
+        let match = results.first.flatMap { first -> ELVGeocodedPlace? in
+            guard let anchor else { return first }
+            let distance = ELVPlaceMatcher.distanceMeters(
+                fromLatitude: first.latitude, longitude: first.longitude,
+                toLatitude: anchor.latitude, longitude: anchor.longitude
+            )
+            return distance <= radius ? first : nil
+        }
+        if let match {
+            let origin: ELVAnchorLadder.Origin? = urlPin != nil ? .urlPin : (addressAnchor != nil ? .geocodeAnchored : nil)
+            let point = trusted.map { _ in ELVAnchorLadder.Point(latitude: match.latitude, longitude: match.longitude) }
+            return Resolution(point: point, origin: origin, place: match)
+        }
+        var resolution = Resolution(point: addressAnchor, origin: addressAnchor != nil ? .geocodeAnchored : nil, place: nil)
+        if trimmedLocality?.isEmpty ?? true, let anchor, let geocoder,
+           let reversed = try await geocoder.reverseGeocode(latitude: anchor.latitude, longitude: anchor.longitude),
+           let subtitle = reversed.localitySubtitle {
+            resolution.reverseLocality = subtitle
+        }
+        return resolution.point == nil && resolution.reverseLocality == nil ? nil : resolution
+    }
+
     // MARK: - Deadline race
 
     /// One backend search raced against `timeoutSeconds`, first result
     /// winning. The losing search is abandoned (`abandonableSearch`) rather
     /// than awaited, so the group — and the caller — unblocks the moment
     /// either child finishes.
-    private func search(_ query: String, near anchor: ELVAnchorLadder.Point, radiusMeters: Double) async throws -> [ELVGeocodedPlace] {
+    private func search(_ query: String, near anchor: ELVAnchorLadder.Point?, radiusMeters: Double) async throws -> [ELVGeocodedPlace] {
         try await withThrowingTaskGroup(of: [ELVGeocodedPlace].self) { group in
             group.addTask {
                 try await Self.abandonableSearch(searcher, query: query, near: anchor, radiusMeters: radiusMeters)
@@ -271,7 +359,7 @@ public struct ELVPlaceResolver: Sendable {
     private static func abandonableSearch(
         _ searcher: any ELVPlaceSearching,
         query: String,
-        near anchor: ELVAnchorLadder.Point,
+        near anchor: ELVAnchorLadder.Point?,
         radiusMeters: Double
     ) async throws -> [ELVGeocodedPlace] {
         let box = SearchStateBox()

@@ -56,6 +56,13 @@ public enum ELVURLTemplate {
 
     /// The input-host placeholder (schemaMinor 4).
     public static let hostPlaceholder = "{host}"
+
+    /// The origin placeholder (schemaMinor 5), valid only as a step's whole
+    /// `url`: the URL this source was recognized from BEFORE a canonical
+    /// capture re-entered it (the `?q=` share a render rewrote), else the
+    /// step's own input. A place page captured into its canonical form can
+    /// still read the metas only the original share page serves.
+    public static let originPlaceholder = "{origin}"
     private static let hostCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789.-")
 
     // `{query.x}` placeholders: group 1 is the query item name. Fixed

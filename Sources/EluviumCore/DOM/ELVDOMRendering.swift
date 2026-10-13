@@ -7,6 +7,30 @@ import Foundation
 /// One CSS query the DOM engine must resolve: a stable key plus the selector
 /// and attribute the compiled JS reads. Keys let the caller map results back
 /// to the field candidates that requested them.
+/// A rendered-text region a dom step can declare (`"regions": ["h1",
+/// "header", "body"]`), read with fixed, binary-owned expressions: the first
+/// `<h1>`'s rendered text (200 characters), the rendered text of that h1's
+/// third ancestor (the header block a page keeps its title and stats in,
+/// 3000), and the body's rendered text (12,000). Results land in
+/// `cssResults` under `key` (`@h1`), a prefix no CSS selector produces.
+public enum ELVDOMRegion: String, Sendable, CaseIterable {
+    case h1
+    case header
+    case body
+
+    public var key: String {
+        "@" + rawValue
+    }
+
+    var query: ELVCSSQuery {
+        switch self {
+        case .h1: ELVCSSQuery(key: key, selector: "h1", attr: "innerText:200")
+        case .header: ELVCSSQuery(key: key, selector: "h1", attr: "ancestorInnerText:3:3000")
+        case .body: ELVCSSQuery(key: key, selector: "body", attr: "innerText:12000")
+        }
+    }
+}
+
 public struct ELVCSSQuery: Sendable, Equatable {
     /// The `cssResults` key: `selector` or `selector@attr` (matching
     /// `ELVSelectorEngine`'s lookup).
@@ -103,7 +127,8 @@ public extension ELVSource {
     /// the final context. The key matches `ELVSelectorEngine`'s
     /// `cssResults` lookup (`selector` or `selector@attr`).
     func cssQueries(for step: ELVFetchStep) -> [ELVCSSQuery] {
-        cssQueries(fieldSpecs: step.fields ?? fields, collectionSpecs: collections + (step.collections ?? []))
+        let regions = step.regions.compactMap(ELVDOMRegion.init(rawValue:)).map(\.query)
+        return cssQueries(fieldSpecs: step.fields ?? fields, collectionSpecs: collections + (step.collections ?? [])) + regions
     }
 
     private func cssQueries(fieldSpecs: [ELVFieldSpec], collectionSpecs: [ELVCollectionSpec]) -> [ELVCSSQuery] {

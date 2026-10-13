@@ -57,6 +57,7 @@
 		DDDDDDDDDDDDDDDDDDDD000B /* Record/RecordCardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD000C /* Record/RecordCardViewController.swift */; };
 		DDDDDDDDDDDDDDDDDDDD000D /* OPMLSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD000E /* OPMLSource.swift */; };
 		DDDDDDDDDDDDDDDDDDDD000F /* KayaPack.json in Resources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD0010 /* KayaPack.json */; };
+		E1E1E1E1E1E1E1E1E1E10001 /* ELVSource+DisplayName.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E1E1E1E1E1E1E1E1E10002 /* ELVSource+DisplayName.swift */; };
 		E240F9128AB1BD1E50DC3D8E /* EluviumCore in Frameworks */ = {isa = PBXBuildFile; productRef = E6FC8D1BBED5DDAA212A9C19 /* EluviumCore */; };
 		EEEEEEEEEEEEEEEEEEEE0001 /* ResolveFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE0002 /* ResolveFlow.swift */; };
 		EEEEEEEEEEEEEEEEEEEE0003 /* ExampleCorpus.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE0004 /* ExampleCorpus.swift */; };
@@ -123,6 +124,7 @@
 		DDDDDDDDDDDDDDDDDDDD000E /* OPMLSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OPMLSource.swift; sourceTree = "<group>"; };
 		DDDDDDDDDDDDDDDDDDDD0010 /* KayaPack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KayaPack.json; sourceTree = "<group>"; };
 		E173A6F8667B375783395CBD /* EluviumExampleTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EluviumExampleTheme.swift; sourceTree = "<group>"; };
+		E1E1E1E1E1E1E1E1E1E10002 /* ELVSource+DisplayName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ELVSource+DisplayName.swift"; sourceTree = "<group>"; };
 		EEEEEEEEEEEEEEEEEEEE0002 /* ResolveFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveFlow.swift; sourceTree = "<group>"; };
 		EEEEEEEEEEEEEEEEEEEE0004 /* ExampleCorpus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleCorpus.swift; sourceTree = "<group>"; };
 		EEEEEEEEEEEEEEEEEEEE0006 /* IdentityShowcase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityShowcase.swift; sourceTree = "<group>"; };
@@ -246,6 +248,7 @@
 				84B672CA1F17FEF2D67D098C /* AppNotification.swift */,
 				DDDDDDDDDDDDDDDDDDDD0002 /* AudioPlayer.swift */,
 				ABCDEF0123456789ABCD0002 /* ELVRecord+DisplayTitle.swift */,
+				E1E1E1E1E1E1E1E1E1E10002 /* ELVSource+DisplayName.swift */,
 				ABCDEF0123456789ABCD0004 /* ImportDemo.swift */,
 				ABCDEF0123456789ABCD0006 /* ImportFileReader.swift */,
 				EEEEEEEEEEEEEEEEEEEE0004 /* ExampleCorpus.swift */,
@@ -463,6 +466,7 @@
 				EEEEEEEEEEEEEEEEEEEE0007 /* RecordActionsView.swift in Sources */,
 				EEEEEEEEEEEEEEEEEEEE0011 /* AccessoryButtonStack.swift in Sources */,
 				ABCDEF0123456789ABCD0001 /* ELVRecord+DisplayTitle.swift in Sources */,
+				E1E1E1E1E1E1E1E1E1E10001 /* ELVSource+DisplayName.swift in Sources */,
 				ABCDEF0123456789ABCD0003 /* ImportDemo.swift in Sources */,
 				ABCDEF0123456789ABCD0005 /* ImportFileReader.swift in Sources */,
 				ABCDEF0123456789ABCD0007 /* Separator.swift in Sources */,

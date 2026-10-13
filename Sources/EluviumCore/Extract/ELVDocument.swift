@@ -12,7 +12,9 @@ public struct ELVDocument: Sendable, Equatable {
     public var jsonLDNodes: [ELVRawJSON]
     /// The JSON body (`json` fetch mode, feed envelopes, API responses).
     public var json: ELVRawJSON?
-    /// Plain text (a pasted share blurb, a page's visible text).
+    /// A page's plain or rendered text. A pasted share blurb never lands
+    /// here (every step replaces the document); it rides
+    /// `ELVExtractionContext.paste`.
     public var text: String? {
         didSet { regexInput = ELVDocumentRegexInput() }
     }
@@ -69,7 +71,7 @@ public struct ELVDocument: Sendable, Equatable {
     }
 
     /// What `textRegex` candidates scan: the rendered `text` when a DOM pass
-    /// (or a pasted blurb) produced it, else the raw `html`, cut to
+    /// produced it, else the raw `html`, cut to
     /// `ELVRegexCache.inputCap`. Built once per document, so the candidates
     /// of one extraction share one prefix copy and one `NSString` bridge
     /// instead of re-cutting a 256K-character prefix each.
@@ -100,18 +102,79 @@ private final class ELVDocumentRegexInput: Sendable, Equatable {
 }
 
 /// Everything a candidate can read: the input URL, recognition params, the
-/// captured document, and fields already resolved (pack order lets later
-/// fields reference earlier ones).
+/// captured document, fields already resolved (pack order lets later
+/// fields reference earlier ones), and the paste the input came from.
 public struct ELVExtractionContext: Sendable {
     public var url: URL?
     public var params: [String: String]
     public var document: ELVDocument
     public var fields: [String: ELVValue]
+    /// The share blurb around the input link, when the input was pasted
+    /// text; nil for a bare URL. It survives every step and a redirect or
+    /// canonical-capture re-entry, unlike the document.
+    public var paste: ELVPasteContext?
 
-    public init(url: URL? = nil, params: [String: String] = [:], document: ELVDocument = ELVDocument(), fields: [String: ELVValue] = [:]) {
+    public init(url: URL? = nil, params: [String: String] = [:], document: ELVDocument = ELVDocument(), fields: [String: ELVValue] = [:], paste: ELVPasteContext? = nil) {
         self.url = url
         self.params = params
         self.document = document
         self.fields = fields
+        self.paste = paste
     }
+}
+
+/// What a `paste` selector reads: the blurb around the input link, the
+/// label a host's user typed, and the brand of the source now extracting
+/// (the pipeline stamps it per source, so a redirected paste derives its
+/// share name against the brand it landed on).
+public struct ELVPasteContext: Sendable, Equatable {
+    /// The text before the link, trimmed; nil when the paste had none.
+    public var leading: String?
+    /// The paste with the link replaced by a space; nil for a lone URL.
+    public var blurb: String?
+    /// A label the host's user typed; it outranks every extracted label.
+    public var userLabel: String?
+    /// The extracting source's brand (its `title`).
+    public var brand: String?
+    /// Share-blurb name separators (`ELVPastePolicy.labelSeparators`).
+    public var separators: [String]
+
+    public init(leading: String? = nil, blurb: String? = nil, userLabel: String? = nil, brand: String? = nil, separators: [String] = ELVPastePolicy.standard.labelSeparators) {
+        self.leading = leading
+        self.blurb = blurb
+        self.userLabel = userLabel
+        self.brand = brand
+        self.separators = separators
+    }
+
+    /// The context for `input`, or nil when it carries nothing beyond its
+    /// URL and no label was typed.
+    public init?(input: ELVPastedInput, userLabel: String? = nil, separators: [String] = ELVPastePolicy.standard.labelSeparators) {
+        let typed = userLabel?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = (typed?.isEmpty ?? true) ? nil : typed
+        guard input.leadingText != nil || input.blurb != nil || label != nil else { return nil }
+        self.init(leading: input.leadingText, blurb: input.blurb, userLabel: label, separators: separators)
+    }
+
+    /// The named paste value a `{"paste": key}` selector reads: `label` (the
+    /// "<name> on <Brand>" share name), `title` (the whole lead-in, social
+    /// posts), `leading` (the raw lead-in), `text` (the blurb).
+    func value(_ key: String) -> String? {
+        switch key {
+        case "label":
+            guard let leading, let brand else { return nil }
+            return ELVShareLabel.suffixed(leading: leading, brand: brand, separators: separators)
+        case "title":
+            return leading.flatMap { ELVShareLabel.whole(leading: $0) }
+        case "leading":
+            return leading
+        case "text":
+            return blurb
+        default:
+            return nil
+        }
+    }
+
+    /// The keys `value(_:)` answers; the validator names any other.
+    static let keys: Set<String> = ["label", "title", "leading", "text"]
 }

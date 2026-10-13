@@ -47,6 +47,11 @@ public enum ELVSelector: Sendable, Equatable {
     case field(String)
     /// A registered native op, `name@version`, with named inputs.
     case native(op: String, input: [String: String])
+    /// A value from the paste the input came from (schemaMinor 5): `label`
+    /// (the "<name> on <Brand>" share name), `title` (the whole lead-in),
+    /// `leading`, or `text` (the blurb). A bare-URL input has no paste, so
+    /// the candidate simply doesn't produce.
+    case paste(String)
     /// A selector this binary does not understand. Evaluates to nothing.
     case unsupported(key: String)
 }
@@ -92,6 +97,7 @@ extension ELVSelector: Decodable {
         case "regexRows": self = value().map { .regexRows($0, after: after) } ?? .unsupported(key: key)
         case "column": self = value().map { .column($0) } ?? .unsupported(key: key)
         case "field": self = value().map { .field($0) } ?? .unsupported(key: key)
+        case "paste": self = value().map { .paste($0) } ?? .unsupported(key: key)
         case "native":
             let input = ((try? container.decodeIfPresent([String: String].self, forKey: .init("input"))) ?? nil) ?? [:]
             self = value().map { .native(op: $0, input: input) } ?? .unsupported(key: key)
@@ -116,6 +122,7 @@ extension ELVSelector: Decodable {
         case let .column(name): "column:\(name)"
         case let .field(name): "field:\(name)"
         case let .native(op, _): "native:\(op)"
+        case let .paste(key): "paste:\(key)"
         case let .unsupported(key): "unsupported:\(key)"
         }
     }

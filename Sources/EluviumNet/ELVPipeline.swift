@@ -62,11 +62,27 @@ public struct ELVPipeline: Sendable {
     /// app anyway, so the front door upgrades the scheme instead of failing
     /// every such paste with an opaque transport error.
     public func run(url inputURL: URL, progress: ProgressHandler? = nil) async -> ELVPipelineRun {
+        await run(input: ELVPastedInput(url: inputURL), progress: progress)
+    }
+
+    /// Runs pasted input: its link through the stages, with the blurb
+    /// around it (`ELVPastedInput.leadingText` / `blurb`) and `userLabel`
+    /// riding every step's context, so `paste` candidates read the share
+    /// name and the stats a blurb spells out, and the label ladder ranks a
+    /// typed label first.
+    public func run(input: ELVPastedInput, userLabel: String? = nil, progress: ProgressHandler? = nil) async -> ELVPipelineRun {
         let started = ContinuousClock.now
-        let upgraded = ELVURLPolicy.httpsUpgraded(inputURL)
-        var trace = ELVRunTrace(inputHost: upgraded.host)
-        let result = await run(url: upgraded, chased: false, captured: false, progress: progress, trace: &trace)
+        let upgraded = ELVURLPolicy.httpsUpgraded(input.url)
+        var trace = ELVRunTrace(inputHost: ELVLogFormat.traceHost(upgraded))
+        let paste = ELVPasteContext(input: input, userLabel: userLabel)
+        let result = await run(url: upgraded, chased: false, captured: false, origin: nil, paste: paste, progress: progress, trace: &trace)
         return finish(result, trace: trace, started: started, input: upgraded)
+    }
+
+    /// The offline preview of `input` against this pipeline's pack: the
+    /// synchronous half a host shows while `run` does the rest.
+    public func preview(input: ELVPastedInput, userLabel: String? = nil) -> ELVPreview {
+        pack.preview(input, userLabel: userLabel)
     }
 
     /// Runs a seeded source's fetch plan from its pack-authored `seed` URL,
@@ -84,9 +100,9 @@ public struct ELVPipeline: Sendable {
             return finish(.failed(.invalidURL, sourceId: sourceId), trace: trace, started: started, input: nil)
         }
         let upgraded = ELVURLPolicy.httpsUpgraded(seedURL)
-        trace.inputHost = upgraded.host
+        trace.inputHost = ELVLogFormat.traceHost(upgraded)
         trace.sourceIds.append(source.id)
-        let result = await run(source: source, params: [:], inputURL: upgraded, chased: false, progress: progress, trace: &trace)
+        let result = await run(source: source, params: [:], inputURL: upgraded, chased: false, origin: nil, paste: nil, progress: progress, trace: &trace)
         return finish(result, trace: trace, started: started, input: upgraded)
     }
 
@@ -99,7 +115,9 @@ public struct ELVPipeline: Sendable {
         return ELVPipelineRun(result: result, trace: trace)
     }
 
-    private func run(url inputURL: URL, chased: Bool, captured: Bool, progress: ProgressHandler?, trace: inout ELVRunTrace) async -> ELVPipelineResult {
+    /// `origin` is the URL a canonical capture rewrote (nil before any
+    /// capture): what an `{origin}` step URL fetches.
+    private func run(url inputURL: URL, chased: Bool, captured: Bool, origin: URL?, paste: ELVPasteContext?, progress: ProgressHandler?, trace: inout ELVRunTrace) async -> ELVPipelineResult {
         progress?(.recognize)
         if let recognition = pack.registry.recognize(inputURL), let matched = pack.source(withId: recognition.sourceId) {
             trace.sourceIds.append(matched.id)
@@ -124,7 +142,7 @@ public struct ELVPipeline: Sendable {
                     return .failed(.formatDrift("redirector op \(opReference) is not registered"), sourceId: matched.id)
                 }
                 let started = ContinuousClock.now
-                var chase = ELVStepTrace(sourceId: matched.id, index: 0, mode: "native", host: inputURL.host, notes: ["resolvesVia \(opReference)"])
+                var chase = ELVStepTrace(sourceId: matched.id, index: 0, mode: "native", host: ELVLogFormat.traceHost(inputURL), notes: ["resolvesVia \(opReference)"])
                 let failure: ELVFetchFailure
                 do {
                     guard let outputs = try await op(["url": inputURL.absoluteString], ELVExtractionContext(url: inputURL)),
@@ -140,7 +158,7 @@ public struct ELVPipeline: Sendable {
                     chase.notes.append("expanded to \(ELVLogFormat.host(expanded))")
                     trace.steps.append(chase)
                     trace.notes.append("redirector \(matched.id) chased to \(ELVLogFormat.host(expanded))")
-                    return await run(url: expanded, chased: true, captured: captured, progress: progress, trace: &trace)
+                    return await run(url: expanded, chased: true, captured: captured, origin: origin, paste: paste, progress: progress, trace: &trace)
                 } catch is CancellationError {
                     failure = Self.cancelledMarker
                 } catch {
@@ -153,9 +171,17 @@ public struct ELVPipeline: Sendable {
                 trace.steps.append(chase)
                 return .failed(failure, sourceId: matched.id)
             }
-            return await run(source: matched, params: recognition.params, inputURL: inputURL, chased: chased, progress: progress, trace: &trace)
+            return await run(source: matched, params: recognition.params, inputURL: inputURL, chased: chased, origin: origin, paste: paste, progress: progress, trace: &trace)
         }
-        return await runFloors(inputURL: inputURL, progress: progress, trace: &trace)
+        return await runFloors(inputURL: inputURL, paste: paste, progress: progress, trace: &trace)
+    }
+
+    /// The paste as one source sees it: stamped with that source's brand, so
+    /// a share name derives against the brand the link landed on.
+    private func paste(_ paste: ELVPasteContext?, for source: ELVSource) -> ELVPasteContext? {
+        guard var paste else { return nil }
+        paste.brand = source.title
+        return paste
     }
 
     /// Whether any of the source's fetch steps declares a canonical-URL
@@ -178,13 +204,13 @@ public struct ELVPipeline: Sendable {
     /// still returned (a link card with the URL and its hash id): floors
     /// are the "every URL produces something" contract, so the empty-record
     /// drift rule for recognized sources deliberately does not apply here.
-    private func runFloors(inputURL: URL, progress: ProgressHandler?, trace: inout ELVRunTrace) async -> ELVPipelineResult {
+    private func runFloors(inputURL: URL, paste pasted: ELVPasteContext?, progress: ProgressHandler?, trace: inout ELVRunTrace) async -> ELVPipelineResult {
         guard !pack.genericFloors.isEmpty else { return .unrecognized }
         trace.usedFloors = true
 
         progress?(.fetch)
         let started = ContinuousClock.now
-        var shared = ELVStepTrace(sourceId: nil, index: 0, mode: ELVFetchModes.http, host: inputURL.host)
+        var shared = ELVStepTrace(sourceId: nil, index: 0, mode: ELVFetchModes.http, host: ELVLogFormat.traceHost(inputURL))
         let response: ELVFetchResponse
         do {
             response = try await fetcher.fetch(inputURL, persona: .mobileSafari, accept: Self.floorAccept)
@@ -194,6 +220,12 @@ public struct ELVPipeline: Sendable {
             shared.outcome = failure == Self.cancelledMarker ? .cancelled : .failed(failure)
             shared.duration = ContinuousClock.now - started
             trace.steps.append(shared)
+            // A refused fetch (a 403 wall) may still render: the last floor's
+            // dom rung, when it declares one whose `when` admits the status.
+            if failure != Self.cancelledMarker, let floor = pack.genericFloors.last,
+               let rendered = await renderFloor(floor, url: inputURL, status: failureStatus(failure) ?? 0, prior: nil, paste: pasted, progress: progress, trace: &trace) {
+                return rendered
+            }
             return .failed(failure, sourceId: nil)
         }
         shared.status = response.status
@@ -206,7 +238,8 @@ public struct ELVPipeline: Sendable {
         var lastFloor: String?
         for floor in pack.genericFloors {
             guard let step = floorStep(for: floor),
-                  let context = try? makeContext(step: step, source: floor, response: response, params: [:]) else { continue }
+                  var context = try? makeContext(step: step, source: floor, response: response, params: [:]) else { continue }
+            context.paste = paste(pasted, for: floor)
             guard let extracted = try? await ELVExtractor.extractAsync(fields: floor.fields, context: context) else {
                 // `extractAsync` throws only on cancellation.
                 shared.outcome = .cancelled
@@ -225,6 +258,9 @@ public struct ELVPipeline: Sendable {
                 trace.sourceIds.append(floor.id)
                 trace.fieldMisses = ELVExtractor.misses(fields: floor.fields, result: extracted)
                 trace.nativeOpFailures = extracted.nativeOpFailures
+                if let rendered = await renderFloor(floor, url: inputURL, status: response.status, prior: extracted, paste: pasted, progress: progress, trace: &trace) {
+                    return rendered
+                }
                 progress?(.assemble)
                 return .record(record)
             }
@@ -245,8 +281,69 @@ public struct ELVPipeline: Sendable {
         shared.outcome = .produced
         shared.extracted = 0
         trace.steps.append(shared)
+        if let floor = pack.genericFloors.last,
+           let rendered = await renderFloor(floor, url: inputURL, status: response.status, prior: nil, paste: pasted, progress: progress, trace: &trace) {
+            return rendered
+        }
         if let lastFloor { trace.sourceIds.append(lastFloor) }
         return lastResult
+    }
+
+    /// A floor's dom rung: when the floor declares a `dom` step whose `when`
+    /// admits the shared fetch's outcome (its status, the fields the floor
+    /// extracted from it) and a renderer is injected, the page is rendered
+    /// and the floor's ladder re-runs over the render, fill-empty over what
+    /// the fetch gave. Nil when there is no rung, it declined, or the render
+    /// produced nothing, so the caller keeps the fetch's own outcome.
+    private func renderFloor(
+        _ floor: ELVSource,
+        url: URL,
+        status: Int,
+        prior: ELVExtractor.FieldResult?,
+        paste pasted: ELVPasteContext?,
+        progress: ProgressHandler?,
+        trace: inout ELVRunTrace
+    ) async -> ELVPipelineResult? {
+        guard let renderer = domRenderer,
+              let step = floor.fetch?.resolvedSteps.first(where: { $0.mode == ELVFetchModes.dom }),
+              step.permits(url: url, didProduce: true, lastStatus: status, extracted: prior?.values ?? [:], brand: floor.title)
+        else { return nil }
+        var stepTrace = ELVStepTrace(sourceId: floor.id, index: 1, mode: ELVFetchModes.dom, host: ELVLogFormat.traceHost(url))
+        let started = ContinuousClock.now
+        do {
+            let rendered = try await renderDOM(step: step, source: floor, url: url, params: [:], renderer: renderer, trace: &stepTrace)
+            var context = rendered.context
+            context.paste = paste(pasted, for: floor)
+            progress?(.extract)
+            let extracted = try await ELVExtractor.extractAsync(fields: step.fields ?? floor.fields, context: context)
+            let combined = prior.map { merged(previous: $0, with: extracted) } ?? extracted
+            stepTrace.duration = ContinuousClock.now - started
+            guard !extracted.values.isEmpty else {
+                stepTrace.outcome = .failed(.formatDrift("render extracted nothing"))
+                trace.steps.append(stepTrace)
+                return nil
+            }
+            stepTrace.outcome = .produced
+            stepTrace.extracted = extracted.values.count
+            trace.steps.append(stepTrace)
+            if !trace.sourceIds.contains(floor.id) { trace.sourceIds.append(floor.id) }
+            trace.fieldMisses = ELVExtractor.misses(fields: floor.fields, result: combined)
+            trace.nativeOpFailures += extracted.nativeOpFailures
+            var enriched = context
+            enriched.fields = combined.values
+            progress?(.assemble)
+            return .record(ELVAssembler.assemble(source: floor, context: enriched, preExtracted: combined))
+        } catch is CancellationError {
+            stepTrace.outcome = .cancelled
+            stepTrace.duration = ContinuousClock.now - started
+            trace.steps.append(stepTrace)
+            return .failed(Self.cancelledMarker, sourceId: floor.id)
+        } catch {
+            stepTrace.outcome = .failed(ELVFetchFailure.folding(error))
+            stepTrace.duration = ContinuousClock.now - started
+            trace.steps.append(stepTrace)
+            return nil
+        }
     }
 
     /// The floor's transport step: floors parse the shared response, so
@@ -281,8 +378,18 @@ public struct ELVPipeline: Sendable {
         case cancelled
     }
 
-    private func run(source: ELVSource, params paramsIn: [String: String], inputURL: URL, chased: Bool, progress: ProgressHandler?, trace: inout ELVRunTrace) async -> ELVPipelineResult {
+    private func run(
+        source: ELVSource,
+        params paramsIn: [String: String],
+        inputURL: URL,
+        chased: Bool,
+        origin: URL?,
+        paste pasted: ELVPasteContext?,
+        progress: ProgressHandler?,
+        trace: inout ELVRunTrace
+    ) async -> ELVPipelineResult {
         let recognition = ELVRecognition(sourceId: source.id, params: paramsIn)
+        let paste = paste(pasted, for: source)
 
         // Canonicalize before fetching: the share variant may serve
         // lighter metas; a keep-token must survive.
@@ -294,7 +401,7 @@ public struct ELVPipeline: Sendable {
         var didProduce = false
         var lastStatus = 0
         var extracted = ELVExtractor.FieldResult(values: [:], provenance: [:])
-        var context = ELVExtractionContext(url: canonicalURL, params: recognition.params)
+        var context = ELVExtractionContext(url: canonicalURL, params: recognition.params, paste: paste)
         var timedOutCapture: ELVCanonicalCapture?
         var stepCollections: [String: [ELVRecord]] = [:]
         // Each producing step's misses and op failures, merged against the
@@ -304,7 +411,7 @@ public struct ELVPipeline: Sendable {
 
         progress?(.fetch)
         for (index, step) in steps.enumerated() {
-            var stepTrace = ELVStepTrace(sourceId: source.id, index: index, mode: step.mode, host: canonicalURL.host)
+            var stepTrace = ELVStepTrace(sourceId: source.id, index: index, mode: step.mode, host: ELVLogFormat.traceHost(canonicalURL))
             // Runs none / http / json / feed, and dom when a renderer is
             // injected; native escalation is the Places layer's job.
             let runnable = ELVFetchModes.coreExecutable.contains(step.mode) || (step.mode == ELVFetchModes.dom && domRenderer != nil)
@@ -314,14 +421,14 @@ public struct ELVPipeline: Sendable {
                 trace.steps.append(stepTrace)
                 continue
             }
-            guard stepPermitted(step, url: canonicalURL, didProduce: didProduce, lastStatus: lastStatus, extracted: extracted.values) else {
+            guard step.permits(url: canonicalURL, didProduce: didProduce, lastStatus: lastStatus, extracted: extracted.values, brand: source.title) else {
                 stepTrace.outcome = .declined
                 trace.steps.append(stepTrace)
                 continue
             }
 
             let started = ContinuousClock.now
-            let outcome = await execute(step: step, source: source, canonicalURL: canonicalURL, params: recognition.params, progress: progress, trace: &stepTrace)
+            let outcome = await execute(step: step, source: source, canonicalURL: canonicalURL, origin: origin, params: recognition.params, paste: paste, progress: progress, trace: &stepTrace)
             stepTrace.duration = ContinuousClock.now - started
             switch outcome {
             case let .produced(stepContext, status, stepExtracted, collections, missedCapture):
@@ -355,7 +462,7 @@ public struct ELVPipeline: Sendable {
                 // like a redirector's expansion — the iOS share
                 // becomes the desktop share, and the re-recognized source
                 // (gmaps.place), not the capturing one, owns the pin.
-                return await run(url: canonical, chased: chased, captured: true, progress: progress, trace: &trace)
+                return await run(url: canonical, chased: chased, captured: true, origin: canonicalURL, paste: pasted, progress: progress, trace: &trace)
             case let .failed(failure):
                 stepTrace.outcome = .failed(failure)
                 trace.steps.append(stepTrace)
@@ -437,11 +544,20 @@ public struct ELVPipeline: Sendable {
     /// mode's transport, and the awaited field extraction. Cross-step
     /// concerns stay with the caller; the step's trace facts land in
     /// `stepTrace`.
-    private func execute(step: ELVFetchStep, source: ELVSource, canonicalURL: URL, params: [String: String], progress: ProgressHandler?, trace stepTrace: inout ELVStepTrace) async -> StepOutcome {
+    private func execute(
+        step: ELVFetchStep,
+        source: ELVSource,
+        canonicalURL: URL,
+        origin: URL?,
+        params: [String: String],
+        paste: ELVPasteContext?,
+        progress: ProgressHandler?,
+        trace stepTrace: inout ELVStepTrace
+    ) async -> StepOutcome {
         do {
-            let stepURL = try resolvedURL(step: step, base: canonicalURL, params: params)
-            stepTrace.host = stepURL.host
-            let stepContext: ELVExtractionContext
+            let stepURL = try resolvedURL(step: step, base: canonicalURL, origin: origin, params: params)
+            stepTrace.host = ELVLogFormat.traceHost(stepURL)
+            var stepContext: ELVExtractionContext
             var stepTruncated = false
             var missedCapture: ELVCanonicalCapture?
             var status = 200
@@ -485,6 +601,7 @@ public struct ELVPipeline: Sendable {
                 status = fetched.status
                 stepTruncated = fetched.truncated
             }
+            stepContext.paste = paste
             progress?(.extract)
             // Step-scoped extraction: a step that declares `fields`
             // runs ONLY those, so an enrichment endpoint (API lookup, embed
@@ -565,22 +682,6 @@ public struct ELVPipeline: Sendable {
             result.provenance[name] = previous.provenance[name]
         }
         return result
-    }
-
-    /// Whether `step` runs for this input given the previous step's outcome.
-    /// The URL-shape precondition (`when.hostMatches` / `when.pathRegex`)
-    /// scopes the step to inputs of a given shape and applies from the first
-    /// step on; response conditions still gate only re-fetches.
-    private func stepPermitted(_ step: ELVFetchStep, url: URL, didProduce: Bool, lastStatus: Int, extracted: [String: ELVValue]) -> Bool {
-        guard let trigger = step.when else { return true }
-        // A dangling named-trigger reference never admits: the step
-        // was authored conditional and its condition is unresolvable.
-        if trigger.ref != nil { return false }
-        guard trigger.urlPermits(url) else { return false }
-        if didProduce, trigger.hasResponseConditions {
-            return trigger.fires(status: lastStatus, extractedFields: extracted)
-        }
-        return true
     }
 
     /// An http / json / feed step: fetch, build the extraction context, and
@@ -730,8 +831,9 @@ public struct ELVPipeline: Sendable {
     /// syndication token is the motivating case). A template that cannot be
     /// filled fails the step — falling back to the source URL would fetch
     /// the wrong host with the step's Accept and parse mode.
-    private func resolvedURL(step: ELVFetchStep, base: URL, params: [String: String]) throws -> URL {
+    private func resolvedURL(step: ELVFetchStep, base: URL, origin: URL?, params: [String: String]) throws -> URL {
         guard let template = step.url else { return base }
+        if template == ELVURLTemplate.originPlaceholder { return origin ?? base }
         // Native placeholders first, then the shared `{param.x}` filler: one
         // percent-encoding rule for the pipeline and the enumerator.
         let filledParams = try ELVURLTemplate.fill(substituteNativePlaceholders(in: template, base: base, params: params), params: params)

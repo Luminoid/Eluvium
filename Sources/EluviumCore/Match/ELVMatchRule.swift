@@ -3,10 +3,16 @@ import Foundation
 /// A source's match rule. `hosts` use exact-or-subdomain semantics,
 /// `brands` use the TLD-constrained brand form — there is deliberately no
 /// substring form in this type, which is what makes lookalike hosts
-/// unmatchable by construction.
+/// unmatchable by construction. `schemes` claims an app's own URL scheme
+/// (`comgooglemaps://`, `flighty://`) instead of a host.
 public struct ELVMatchRule: Sendable, Decodable, Equatable {
     public var hosts: [String]
     public var brands: [String]
+    /// App URL schemes, lowercased, without `://` (schemaMinor 5). A scheme
+    /// rule matches only URLs with one of these schemes, never a web URL,
+    /// and its source must be URL-only: the validator refuses a fetch step,
+    /// so an app link never leaves the device.
+    public var schemes: [String]
     /// Path patterns with `:name` captures (see `ELVPathPattern`), tried in
     /// order; the first match wins and supplies the params. The `path` key
     /// takes a scalar or an array (leniency), so a multi-shape source
@@ -19,9 +25,10 @@ public struct ELVMatchRule: Sendable, Decodable, Equatable {
     /// of a host.
     public var file: ELVFileMatchRule?
 
-    public init(hosts: [String] = [], brands: [String] = [], paths: [String] = [], priority: Int = 0, file: ELVFileMatchRule? = nil) {
+    public init(hosts: [String] = [], brands: [String] = [], schemes: [String] = [], paths: [String] = [], priority: Int = 0, file: ELVFileMatchRule? = nil) {
         self.hosts = hosts
         self.brands = brands
+        self.schemes = schemes.map { $0.lowercased() }
         self.paths = paths
         self.priority = priority
         self.file = file
@@ -30,6 +37,7 @@ public struct ELVMatchRule: Sendable, Decodable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case hosts = "host"
         case brands = "brand"
+        case schemes = "scheme"
         case paths = "path"
         case priority
         case file
@@ -39,15 +47,16 @@ public struct ELVMatchRule: Sendable, Decodable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         hosts = try container.elvStringList(forKey: .hosts)
         brands = try container.elvStringList(forKey: .brands)
+        schemes = try container.elvStringList(forKey: .schemes).map { $0.lowercased() }
         paths = try container.elvStringList(forKey: .paths)
         priority = try container.decodeIfPresent(Int.self, forKey: .priority) ?? 0
         file = try container.decodeIfPresent(ELVFileMatchRule.self, forKey: .file)
     }
 
-    /// A rule with no host, brand, path, or file constraint: it matches any
-    /// URL, which is what makes a generic floor a floor.
+    /// A rule with no host, brand, scheme, path, or file constraint: it
+    /// matches any URL, which is what makes a generic floor a floor.
     public var isCatchAll: Bool {
-        hosts.isEmpty && brands.isEmpty && paths.isEmpty && file == nil
+        hosts.isEmpty && brands.isEmpty && schemes.isEmpty && paths.isEmpty && file == nil
     }
 }
 

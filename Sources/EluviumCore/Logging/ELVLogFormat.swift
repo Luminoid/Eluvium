@@ -12,8 +12,21 @@ package enum ELVLogFormat {
     /// The only part of a URL public log text may carry. Share tokens live
     /// in paths and query strings (a Komoot `share_token`, a Swarm `?s=`, a
     /// shared-list path), so the full URL always goes in `private:`.
+    ///
+    /// An app link names its scheme instead (`flighty:`): its "host" is a
+    /// path word (`flight` in `flighty://flight/UA1`) or absent
+    /// (`comgooglemaps://?q=…`).
     package static func host(_ url: URL?) -> String {
-        url?.host ?? "-"
+        url.flatMap(traceHost) ?? "-"
+    }
+
+    /// The host a run trace records: `host(_:)` without the placeholder,
+    /// nil for a web URL with no host.
+    package static func traceHost(_ url: URL) -> String? {
+        if let scheme = url.scheme?.lowercased(), scheme != "http", scheme != "https" {
+            return "\(scheme):"
+        }
+        return url.host
     }
 
     /// Whole milliseconds, for `in 42ms` suffixes.

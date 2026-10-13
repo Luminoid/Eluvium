@@ -15,6 +15,18 @@ import Foundation
 /// still keys distinctly. A cache hit performs no request at all; a miss
 /// runs the full pipeline — recognition, egress policy, redirect chase —
 /// untouched.
+/// Which finished runs a session pins.
+public enum ELVPinPolicy: Sendable, Equatable {
+    /// A record that carries any field or child (the default).
+    case gainedSomething
+    /// Also refuses a record that came out of an impaired run: a native op
+    /// threw (a MapKit lookup timed out), a canonical capture timed out, or
+    /// a producing step was cut at the byte cap or never settled. The next
+    /// paste of the same link retries instead of replaying the partial
+    /// result for the rest of the session.
+    case completeOnly
+}
+
 public actor ELVIngestSession {
     /// Session-lifetime bound: inputs arrive by hand (paste, share sheet),
     /// so the cap only guards a pathological session and a wholesale reset
@@ -23,6 +35,7 @@ public actor ELVIngestSession {
 
     private let pack: ELVLoadedPack
     private let pipeline: ELVPipeline
+    private let pinPolicy: ELVPinPolicy
 
     /// Completed runs keyed by the canonicalized input URL.
     private var cache: [String: ELVPipelineRun] = [:]
@@ -35,8 +48,9 @@ public actor ELVIngestSession {
     /// awaiters but never pins into the fresh cache.
     private var generation = 0
 
-    public init(pack: ELVLoadedPack, fetcher: any ELVFetching = ELVHTTPFetcher(), domRenderer: (any ELVDOMRendering)? = nil) {
+    public init(pack: ELVLoadedPack, fetcher: any ELVFetching = ELVHTTPFetcher(), domRenderer: (any ELVDOMRendering)? = nil, pinPolicy: ELVPinPolicy = .gainedSomething) {
         self.pack = pack
+        self.pinPolicy = pinPolicy
         pipeline = ELVPipeline(pack: pack, fetcher: fetcher, domRenderer: domRenderer)
     }
 
@@ -56,14 +70,31 @@ public actor ELVIngestSession {
     /// the original run with `trace.servedFromCache` set: the trace
     /// describes the run that produced the record, and no request left.
     public func ingest(url: URL, progress: ELVPipeline.ProgressHandler? = nil) async -> ELVPipelineRun {
-        let key = cacheKey(for: url)
+        await ingest(input: ELVPastedInput(url: url), progress: progress)
+    }
+
+    /// `ingest(url:)` for pasted input. The cache key adds the paste's
+    /// blurb and `userLabel` to the canonical URL: two pastes of one link
+    /// with different blurbs are different inputs (one may carry stats the
+    /// other lacks), while a preview and the post-save enrich of the same
+    /// paste still share one run.
+    public func ingest(input: ELVPastedInput, userLabel: String? = nil, progress: ELVPipeline.ProgressHandler? = nil) async -> ELVPipelineRun {
+        let url = ELVURLPolicy.httpsUpgraded(input.url)
+        let key = cacheKey(for: url, input: input, userLabel: userLabel)
         if var cached = cache[key] {
             cached.trace.servedFromCache = true
             ELVLog.debug(.fetch, "Ingest cache hit source=\(cached.trace.sourceIds.last ?? "-") host=\(ELVLogFormat.host(url))")
             return cached
         }
         if let running = inFlight[key] { return await running.value }
-        return await mintTask(url: url, key: key, progress: progress).value
+        return await mintTask(input: input, userLabel: userLabel, key: key, progress: progress).value
+    }
+
+    /// The offline preview of `input` (`ELVLoadedPack.preview`): synchronous
+    /// and isolation-free, so a host can call it on the main thread as the
+    /// text lands.
+    public nonisolated func preview(input: ELVPastedInput, userLabel: String? = nil) -> ELVPreview {
+        pack.preview(input, userLabel: userLabel)
     }
 
     /// Wholesale cache reset. Runs already in flight complete for their
@@ -81,10 +112,10 @@ public actor ELVIngestSession {
     /// check-then-insert atomic (`ingest` reaches here without suspending);
     /// the minted task runs the uncached pipeline, pins a pinnable result,
     /// and clears its own slot on the way out.
-    private func mintTask(url: URL, key: String, progress: ELVPipeline.ProgressHandler?) -> Task<ELVPipelineRun, Never> {
+    private func mintTask(input: ELVPastedInput, userLabel: String?, key: String, progress: ELVPipeline.ProgressHandler?) -> Task<ELVPipelineRun, Never> {
         let minted = generation
         let task = Task { [pipeline, weak self] in
-            let result = await pipeline.run(url: url, progress: progress)
+            let result = await pipeline.run(input: input, userLabel: userLabel, progress: progress)
             await self?.finish(key: key, mintedIn: minted, result: result)
             return result
         }
@@ -112,7 +143,17 @@ public actor ELVIngestSession {
     /// check stays.
     private func shouldPin(_ run: ELVPipelineRun) -> Bool {
         guard let record = run.record else { return false }
-        return !record.fields.isEmpty || record.collections.contains { !$0.value.isEmpty }
+        guard !record.fields.isEmpty || record.collections.contains(where: { !$0.value.isEmpty }) else { return false }
+        switch pinPolicy {
+        case .gainedSomething:
+            return true
+        case .completeOnly:
+            let impairedStep = run.trace.steps.contains { step in
+                guard case .produced = step.outcome else { return false }
+                return step.truncated || step.settled == false
+            }
+            return run.trace.nativeOpFailures.isEmpty && record.provenance["captureCanonical"] == nil && !impairedStep
+        }
     }
 
     /// The cache key: the input URL after the matched source's
@@ -120,11 +161,16 @@ public actor ELVIngestSession {
     /// derives the key — a cache miss re-enters the pipeline's own
     /// recognition unchanged, so hits and misses agree on what the URL
     /// means.
-    private func cacheKey(for url: URL) -> String {
-        guard let recognition = pack.registry.recognize(url),
-              let source = pack.source(withId: recognition.sourceId),
-              let canonicalize = source.canonicalize
-        else { return url.absoluteString }
-        return canonicalize.apply(to: url).absoluteString
+    private func cacheKey(for url: URL, input: ELVPastedInput, userLabel: String?) -> String {
+        var key = url.absoluteString
+        if let recognition = pack.registry.recognize(url),
+           let source = pack.source(withId: recognition.sourceId),
+           let canonicalize = source.canonicalize {
+            key = canonicalize.apply(to: url).absoluteString
+        }
+        guard let paste = ELVPasteContext(input: input, userLabel: userLabel) else { return key }
+        // In-memory keys only, and a paste is capped at
+        // `ELVPastePolicy.maxLength`, so the raw text keys as is.
+        return [key, paste.leading ?? "", paste.blurb ?? "", paste.userLabel ?? ""].joined(separator: "\u{1F}")
     }
 }

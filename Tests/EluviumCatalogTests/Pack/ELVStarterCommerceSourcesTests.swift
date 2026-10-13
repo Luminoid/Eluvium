@@ -122,7 +122,8 @@ struct ELVStarterCommerceSourcesTests {
         }
         // A blanked og:title falls through to the next rung that names the lens.
         let fallThrough = try assemble(url, html: page(ogTitle: "Just a moment...", title: "FE 24-70mm F2.8 GM II | Sony US"))
-        #expect(fallThrough.fields["title"] == .text("FE 24-70mm F2.8 GM II | Sony US"))
+        // The site suffix after " | " goes too.
+        #expect(fallThrough.fields["title"] == .text("FE 24-70mm F2.8 GM II"))
     }
 
     @Test
@@ -156,7 +157,7 @@ struct ELVStarterCommerceSourcesTests {
         let fuji = try assemble("https://www.fujifilm-x.com/en-us/products/lenses/xf8-16mmf28-r-lm-wr/", html: page(ogTitle: "FUJINON XF8-16mmF2.8 R LM WR | Lenses", extra: broken))
         #expect(fuji.fields["summary"] == .text("Product information for FUJINON XF8-16mmF2.8 R LM WR for FUJIFILM X Series"))
         #expect(fuji.fields["image"] == nil)
-        #expect(fuji.fields["title"] == .text("FUJINON XF8-16mmF2.8 R LM WR | Lenses"))
+        #expect(fuji.fields["title"] == .text("FUJINON XF8-16mmF2.8 R LM WR"))
         // A real og:description still outranks the meta description there.
         let sane = "<meta property=\"og:description\" content=\"Red Badge zoom\"><meta name=\"description\" content=\"Product information\">"
         let newer = try assemble("https://www.fujifilm-x.com/en-us/products/lenses/xf16-55mmf28-r-lm-wr-ii/", html: page(extra: sane))

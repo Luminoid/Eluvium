@@ -65,12 +65,16 @@ let starterGenericFloorsJSON = """
       "id": "generic.opengraph",
       "title": "Web pages",
       "kind": "link",
-      "use": ["ogCore"],
+      "use": ["ogCore", "placeNode"],
       "fetch": { "mode": "composite", "steps": [
         { "mode": "http", "ua": "mobileSafari" },
-        { "mode": "http", "ua": "crawler", "when": { "status": [403, 429, 503] } }
+        { "mode": "http", "ua": "crawler", "when": { "status": [403, 429, 503] } },
+        { "mode": "dom", "ua": "desktopSafari", "settle": { "signals": ["jsonld", "og:title", "h1"] },
+          "when": { "anyOf": [{ "status": [403, 429, 503] }, { "missingAny": ["title"] }] } }
       ]},
+      "label": ["placeName", "title", "host"],
       "fields": [
+        { "name": "host", "candidates": [{ "from": { "urlRegex": "^https?://(?:www[.])?([^/?#:@]+)" }, "pipe": ["lower"] }] },
         { "name": "title", "candidates": [
           { "from": { "jsonld": "Product.name" }, "pipe": ["decodeEntities", "trim"] },
           { "from": { "jsonld": "ProductGroup.name" }, "pipe": ["decodeEntities", "trim"] },

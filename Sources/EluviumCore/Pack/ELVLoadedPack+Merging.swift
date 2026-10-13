@@ -45,6 +45,7 @@ public extension ELVLoadedPack {
             pack: overlay.pack,
             sources: mergedSources,
             skipped: mergedSkipped,
+            capabilities: capabilities,
             diagnostics: diagnostics + overlay.diagnostics,
             strongNamespaces: strongNamespaces.union(overlay.strongNamespaces)
         )

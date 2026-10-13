@@ -1,26 +1,15 @@
-import Foundation
+import EluviumCore
 
-/// Pulls the first URL out of a paste, tolerating a share blurb around it
-/// (pasted-text input, the simple half).
+/// Reads the paste box through the framework's pasted-text input. The box
+/// takes only links, so it composes both readings: the strict one first
+/// (a share blurb's embedded link with its leading text, an app link the
+/// pack claims), then the lenient one for a bare host the strict TLD list
+/// doesn't know ("pokeapi.co/api/v2/pokemon/25" gains `https://`). A token
+/// with a scheme the strict reading turned down stays turned down.
 enum InputParser {
-    // Compiled once (the static-pattern rule): NSDataDetector construction
-    // is expensive and this runs on every paste.
-    // swiftlint:disable:next force_try
-    private static let linkDetector = try! NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-
-    static func firstURL(in text: String) -> URL? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let direct = normalized(trimmed) { return direct }
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-        if let match = linkDetector.firstMatch(in: trimmed, range: range), let url = match.url, url.scheme?.hasPrefix("http") == true {
-            return url
-        }
-        // Fall back to the first whitespace-delimited token that parses.
-        return trimmed.split(whereSeparator: \.isWhitespace).lazy.compactMap { normalized(String($0)) }.first
-    }
-
-    private static func normalized(_ token: String) -> URL? {
-        guard let url = URL(string: token), let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https", url.host != nil else { return nil }
-        return url
+    static func input(in text: String, policy: ELVPastePolicy) -> ELVPastedInput? {
+        if let input = ELVPastedInput.parse(text, policy: policy) { return input }
+        guard !text.contains("://") else { return nil }
+        return ELVPastedInput.link(text, policy: policy)
     }
 }

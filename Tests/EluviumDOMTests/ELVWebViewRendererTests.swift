@@ -43,6 +43,52 @@ struct ELVWebViewRendererTests {
     }
 
     @Test
+    func `Declared regions read rendered text: the h1, its header block, and the body`() async throws {
+        let html = """
+        <html><body><nav>Explore nearby</nav>
+        <section><div><header><h1>Hidden Falls Trail</h1><p>Moderate, 5.1 mi</p></header></div></section>
+        <aside>Mission Peak Loop, Hard, 8.2 mi</aside>
+        <div style="display:none">hidden text</div></body></html>
+        """
+        let renderer = ELVWebViewRenderer(watchdogSeconds: 10)
+        let source = ELVSource(id: "t", kind: "trail", fetch: ELVFetchPlan(mode: "dom", regions: ["h1", "header", "body"]))
+        let request = try ELVDOMRequest(
+            url: #require(dataURL(html)),
+            userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+            settle: ELVSettlePolicy(signals: ["h1"], pollSeconds: 0.2, maxPolls: 15),
+            css: source.cssQueries(for: #require(source.fetch?.resolvedSteps.first))
+        )
+        let result = try await renderer.render(request)
+        #expect(result.cssResults["@h1"] == "Hidden Falls Trail")
+        let header = try #require(result.cssResults["@header"])
+        #expect(header.contains("Moderate, 5.1 mi"))
+        #expect(!header.contains("Mission Peak"))
+        let body = try #require(result.cssResults["@body"])
+        #expect(body.contains("Mission Peak Loop"))
+        // innerText is RENDERED text: display:none content is absent.
+        #expect(!body.contains("hidden text"))
+    }
+
+    @Test
+    func `An idle renderer releases its pooled webview`() async throws {
+        let renderer = ELVWebViewRenderer(watchdogSeconds: 10, idleTeardownSeconds: 1)
+        let request = try ELVDOMRequest(
+            url: #require(dataURL("<html><body><h1>Idle</h1></body></html>")),
+            userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+            settle: ELVSettlePolicy(signals: ["h1"], pollSeconds: 0.2, maxPolls: 15),
+            css: []
+        )
+        _ = try await renderer.render(request)
+        #expect(renderer.hasPooledWebView)
+        var polls = 0
+        while renderer.hasPooledWebView, polls < 300 {
+            try await Task.sleep(for: .milliseconds(20))
+            polls += 1
+        }
+        #expect(!renderer.hasPooledWebView)
+    }
+
+    @Test
     func `A rendered page yields CSS results and settled HTML`() async throws {
         let html = """
         <html><head><title>Trail</title>

@@ -36,6 +36,13 @@ enum ELVPackValidator {
                 diagnostics.append(ELVPackDiagnostic(sourceId: source.id, message: "use references fragment \"\(name)\", which the pack does not declare"))
             }
         }
+        let sourceIds = Set(pack.sources.map(\.id))
+        for source in pack.sources {
+            for (host, target) in source.previewAs.sorted(by: { $0.key < $1.key }) where !sourceIds.contains(target) {
+                let message = "previewAs maps \"\(host)\" to \"\(target)\", which the pack does not declare; the preview falls back to the redirector"
+                diagnostics.append(ELVPackDiagnostic(sourceId: source.id, message: message))
+            }
+        }
         if pack.strongNamespaces.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
             diagnostics.append(ELVPackDiagnostic(message: "strongNamespaces lists an empty namespace; it is ignored"))
         }
@@ -76,6 +83,7 @@ enum ELVPackValidator {
         if let match = source.match, match.paths.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
             note("a match rule lists an empty path pattern, which can never match")
         }
+        diagnosePasteGrammar(source, note: note)
         diagnoseRequires(source, note: note)
         if let fetch = source.fetch {
             diagnose(fetch, requires: source.requires, note: note)
@@ -84,8 +92,8 @@ enum ELVPackValidator {
         if let seed = source.seed, URL(string: seed)?.host == nil {
             note("seed \"\(seed)\" does not parse as a URL; runSeed can only fail")
         }
-        if let seed = source.seed, seed.contains(ELVURLTemplate.hostPlaceholder) || seed.contains("{query.") {
-            note("seed \"\(seed)\" carries an input-URL placeholder ({host} / {query.x}); a seed has no input URL, so runSeed can only fail")
+        if let seed = source.seed, seed.contains(ELVURLTemplate.hostPlaceholder) || seed.contains("{query.") || seed.contains(ELVURLTemplate.originPlaceholder) {
+            note("seed \"\(seed)\" carries an input-URL placeholder ({host} / {query.x} / {origin}); a seed has no input URL, so runSeed can only fail")
         }
         for field in source.fields {
             // Top-level fields run through the pipeline's awaited extraction,
@@ -109,6 +117,33 @@ enum ELVPackValidator {
         }
         if let list = source.list {
             diagnose(list, requires: source.requires, note: note)
+        }
+    }
+
+    /// The schemaMinor 5 keys a source declares about pasted links: app
+    /// schemes (URL-only, never mixed with hosts), the label ladder (every
+    /// rung a declared field, step-scoped ones included), and redirector
+    /// preview hints.
+    private static func diagnosePasteGrammar(_ source: ELVSource, note: (String) -> Void) {
+        if let match = source.match, !match.schemes.isEmpty {
+            if !match.hosts.isEmpty || !match.brands.isEmpty {
+                note("a match rule with a scheme matches only app links; its hosts and brands never apply there, so split it into two sources")
+            }
+            if !(source.fetch?.requiredModes.isEmpty ?? true) || source.resolvesVia != nil {
+                note("a scheme-matched source must be URL-only (fetch none); an app link never leaves the device, so its fetch steps never run")
+            }
+        }
+        let stepFieldNames = (source.fetch?.resolvedSteps ?? []).flatMap { $0.fields ?? [] }.map(\.name)
+        let fieldNames = Set(source.fields.map(\.name) + stepFieldNames)
+        for name in source.label where !fieldNames.contains(name) {
+            note("label names field \"\(name)\", which the source does not declare; that rung never produces")
+        }
+        guard !source.previewAs.isEmpty else { return }
+        if source.resolvesVia == nil {
+            note("previewAs applies to redirectors only; this source extracts for itself, so the hint is ignored")
+        }
+        for host in source.previewAs.keys.sorted() where !(source.match?.hosts.contains(host) ?? false) {
+            note("previewAs names host \"\(host)\", which the match rule does not list; it never applies")
         }
     }
 
@@ -195,6 +230,12 @@ enum ELVPackValidator {
             }
             if step.maxBytes != nil, !ELVFetchModes.urlTransports.contains(step.mode) {
                 note("a \"\(step.mode)\" step declares \"maxBytes\", which only URL-transport steps read")
+            }
+            if !step.regions.isEmpty, step.mode != ELVFetchModes.dom {
+                note("a \"\(step.mode)\" step declares \"regions\", which only dom steps read")
+            }
+            for region in step.regions where ELVDOMRegion(rawValue: region) == nil {
+                note("region \"\(region)\" is not one of \(ELVDOMRegion.allCases.map(\.rawValue).joined(separator: ", ")); it is ignored")
             }
             if let url = step.url {
                 diagnoseURLTemplate(url, requires: requires, note: note)
@@ -333,6 +374,10 @@ enum ELVPackValidator {
             if !ELVJSONPath(path).isValid {
                 note("\(location): json path does not parse: \(path)")
             }
+        case let .paste(key):
+            if !ELVPasteContext.keys.contains(key) {
+                note("\(location): paste key \"\(key)\" is not one of \(ELVPasteContext.keys.sorted().joined(separator: ", ")); the candidate never produces")
+            }
         case let .jsonld(path):
             // The first dotted component is the @type filter (`*` for any);
             // with none the engine has no node to select from.
@@ -360,6 +405,9 @@ enum ELVPackValidator {
     }
 
     private static func diagnoseURLTemplate(_ template: String, requires: [String], note: (String) -> Void) {
+        if template.contains(ELVURLTemplate.originPlaceholder), template != ELVURLTemplate.originPlaceholder {
+            note("url template \"\(template)\" embeds {origin}; it is valid only as a step's whole url")
+        }
         guard template.contains("{native:") else { return }
         let nsTemplate = template as NSString
         for match in ELVURLTemplate.nativePlaceholderRegex.matches(in: template, range: NSRange(location: 0, length: nsTemplate.length)) {

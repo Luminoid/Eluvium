@@ -29,9 +29,11 @@ struct ELVStarterPackTests {
         // account on the platform's side. xiaohongshu.post ships none either
         // (2026-10-12): a note loads only with a share-minted xsec_token.
         // flighty.flight keeps one share; its others name their traveler
-        // (2026-10-12). File sources take files, not links: their corpus is
-        // the fixture files their EluviumCatalogTests suites import.
-        let exempt: Set = ["komoot.route", "shortlinks.media", "xiaohongshu.post", "flighty.flight"]
+        // (2026-10-12). booking.share expands Booking's app shares, which
+        // are minted per sharer like xhslink (2026-10-13). File sources take
+        // files, not links: their corpus is the fixture files their
+        // EluviumCatalogTests suites import.
+        let exempt: Set = ["komoot.route", "shortlinks.media", "xiaohongshu.post", "flighty.flight", "booking.share"]
         for source in pack.pack.sources where source.seed == nil && !exempt.contains(source.id) && source.match?.file == nil {
             #expect(source.examples.count >= 2, "\(source.id) has \(source.examples.count) examples, needs 2")
         }
@@ -120,21 +122,24 @@ struct ELVStarterPackTests {
     @Test
     func `Sources whose capabilities this binary lacks are skipped; the rest stay active`() throws {
         // A Core-only load has neither the DOM engine, EluviumNet's
-        // shortlink op, nor EluviumPlaces' MapKit ops, so the dom-escalating,
-        // redirector, and MapKit-enriched sources skip. gmaps.share is
-        // dom-only by design (its whole job is the canonical-URL
-        // capture); gmaps.place.mapkit is the priority-110 shadow that only
-        // a Places-registered binary runs — plain gmaps.place serves here;
-        // Komoot, Goodreads (past AWS WAF's challenge), Fragrantica, and
-        // Xiaohongshu escalate to dom like AllTrails. (camera.lens is plain
-        // http, so it stays active here;
-        // Amazon/Chewy are no longer here at all: they live in the opt-in
-        // commerce pack, tested separately.)
+        // shortlink op, nor EluviumPlaces' MapKit ops. Only a mode a source
+        // always runs gates it: the redirectors (their chase op) and the
+        // MapKit shadows skip, while a source whose dom step is a
+        // conditional escalation (AllTrails, Komoot, Goodreads,
+        // Fragrantica, Xiaohongshu, the place pages, gmaps.share's capture)
+        // stays active on its earlier rungs. (Amazon/Chewy live in the
+        // opt-in commerce pack, tested separately.)
         let pack = try loaded()
-        #expect(pack.skipped.map(\.id) == [
-            "shortlinks.travel", "gmaps.place.mapkit", "gmaps.share", "alltrails.trail", "komoot.route",
-            "goodreads.book", "fragrantica.perfume", "xiaohongshu.post", "shortlinks.media",
-        ])
+        // The op registry is process-wide and other suites register the
+        // shortlink and MapKit ops concurrently, so this pins the shape: only
+        // op-gated sources ever skip, each for a missing op, never for a mode.
+        let opGated: Set = ["shortlinks.travel", "booking.share", "gmaps.place.mapkit", "applemaps.place.mapkit", "shortlinks.media"]
+        #expect(Set(pack.skipped.map(\.id)).isSubset(of: opGated))
+        for skip in pack.skipped {
+            #expect(skip.reason.hasPrefix("native op"), "\(skip.id): \(skip.reason)")
+        }
+        #expect(pack.sources.map(\.id).contains("alltrails.trail"))
+        #expect(pack.sources.map(\.id).contains("gmaps.share"))
         #expect(pack.sources.map(\.id).contains("pokeapi.pokemon"))
         #expect(pack.sources.map(\.id).contains("imdb.title"))
         // The flight op is a builtin, so Flighty needs only Core capabilities.
@@ -190,7 +195,9 @@ struct ELVStarterPackTests {
         let params = ["shareId": "00000000f-0000-4000-8000-000000000000"]
         let record = ELVAssembler.assemble(source: source, context: ELVExtractionContext(url: url, params: params, document: ELVDocument(html: html)))
 
-        #expect(record.fields["title"] == .text("Track AS 6208 to Palm Springs"))
+        // The og:title's "Track " lead is dropped, so the title names the flight.
+        #expect(record.fields["title"] == .text("AS 6208 to Palm Springs"))
+        #expect(record.fields["label"] == .text("AS 6208 to Palm Springs"))
         guard case let .text(drift)? = record.fields["formatDrift"] else {
             Issue.record("Expected the drift sentinel to produce")
             return
@@ -231,10 +238,12 @@ struct ELVStarterPackTests {
     }
 
     @Test
-    func `The AllTrails source derives trail stats through the native op's document fallback`() throws {
+    func `The AllTrails source derives trail stats and locality from an http page's metas`() throws {
         let pack = try ELVStarterPack.load(capabilities: ELVCapabilities(fetchModes: ["http", "json", "archive", "feed", "dom"], binaryVersion: "0.1"))
         let source = try #require(pack.source(withId: "alltrails.trail"))
-        #expect(source.requires.contains("native:trail.statsFromText@2"))
+        #expect(source.requires.contains("native:trail.statsFromText@3"))
+        // The dom rung reads the rendered regions the anchor ladder needs.
+        #expect(source.fetch?.resolvedSteps.last?.regions == ["h1", "header", "body"])
         let document = ELVDocument(metas: [
             "og:title": "Hidden Falls Trail - Wyoming | AllTrails",
             "og:description": "Try this 1.1-mile out-and-back trail. Generally considered an easy route, it takes an average of 32 min to complete.",
@@ -245,6 +254,11 @@ struct ELVStarterPackTests {
         #expect(record.fields["distance"] == .text("1.1 mi"))
         #expect(record.fields["difficulty"] == .text("Easy"))
         #expect(record.fields["duration"] == .text("32 min"))
+        #expect(record.fields["trailStatSources"] == .text("og"))
+        // The og:title's " - Region | AllTrails" tail is cut; the URL path
+        // seeds the locality when no page prose names a nearer one.
+        #expect(record.fields["label"] == .text("Hidden Falls Trail"))
+        #expect(record.fields["locality"] == .text("Wyoming, US"))
     }
 
     @Test
@@ -254,21 +268,26 @@ struct ELVStarterPackTests {
         // gmaps.place's `/maps/**` path can never match — the rescue target.
         let share = try #require(URL(string: "https://maps.google.com/?q=Grand+Prismatic"))
         #expect(pack.registry.recognize(share)?.sourceId == "gmaps.share")
-        // The `/maps?q=` form stays with gmaps.place (priority 100 over 95):
-        // `/maps/**` matches the bare `/maps` path, and its example corpus
-        // pins the URL-only extraction of exactly this shape.
+        // The `/maps?q=` form (the expanded iOS share) is the share source's
+        // too, on any Google Maps ccTLD: priority 120 over gmaps.place's 100
+        // for the two exact paths.
         let legacy = try #require(URL(string: "https://maps.google.com/maps?q=Grand+Prismatic+Spring+Overlook,+Yellowstone+NP&ftid=0x5351eb:0"))
-        #expect(pack.registry.recognize(legacy)?.sourceId == "gmaps.place")
+        #expect(pack.registry.recognize(legacy)?.sourceId == "gmaps.share")
+        let japan = try #require(URL(string: "https://maps.google.co.jp/maps?q=Tokyo+Tower"))
+        #expect(pack.registry.recognize(japan)?.sourceId == "gmaps.share")
         // The captured canonical desktop form recognizes to gmaps.place, so
         // capture re-entry terminates there (never back on gmaps.share).
         let canonical = try #require(URL(string: "https://www.google.com/maps/place/Grand+Prismatic+Spring/@44.52,-110.83,17z/data=!8m2!3d44.5251!4d-110.8382"))
         #expect(pack.registry.recognize(canonical)?.sourceId == "gmaps.place")
 
-        // The dom step declares the capture: the share URL lacks the target
+        // URL-only first, then the dom step declaring the capture, which runs
+        // only while no pin came from the URL: the share URL lacks the target
         // data (the gate), the canonical form matches it.
         let source = try #require(pack.source(withId: "gmaps.share"))
-        let step = try #require(source.fetch?.resolvedSteps.first)
+        #expect(source.fetch?.resolvedSteps.map(\.mode) == ["none", "dom"])
+        let step = try #require(source.fetch?.resolvedSteps.last)
         #expect(step.mode == "dom")
+        #expect(step.when?.missingAny == ["geo"])
         let capture = try #require(step.captureCanonical)
         #expect(capture.maxPolls == 20)
         #expect(!ELVRegexCache.matches(capture.untilURLRegex, in: share.absoluteString))
@@ -491,13 +510,24 @@ struct ELVStarterPackTests {
     func `The gmaps place page metas classify into name, type, rating, and address through the wired ops`() throws {
         let pack = try loaded()
         let source = try #require(pack.source(withId: "gmaps.place"))
-        // The composite: URL-only first, http(crawler) only when the URL
-        // yielded no name — the pin corpus stays fetch-free.
+        // The composite: URL-only first, then the place page's metas as an
+        // enrichment step scoped to the meta fields, fetched at `{origin}`
+        // (the pre-capture share page when a render rewrote the link).
         let steps = try #require(source.fetch?.resolvedSteps)
         #expect(steps.map(\.mode) == ["none", "http"])
-        let trigger = try #require(steps.last?.when)
-        #expect(trigger.fires(status: 200, extractedFields: [:]))
-        #expect(!trigger.fires(status: 200, extractedFields: ["title": .text("Jenny Lake")]))
+        #expect(steps.last?.when == nil)
+        #expect(steps.last?.url == "{origin}")
+        let metaFields = try #require(steps.last?.fields)
+        func assembleMetas(_ document: ELVDocument, url: URL) -> ELVRecord {
+            let context = ELVExtractionContext(url: url, document: document)
+            var result = ELVExtractor.extract(fields: source.fields, context: context)
+            for (name, value) in ELVExtractor.extract(fields: metaFields, context: context).values {
+                result.values[name] = value
+            }
+            var enriched = context
+            enriched.fields = result.values
+            return ELVAssembler.assemble(source: source, context: enriched, preExtracted: result)
+        }
 
         // A label-less URL whose page metas carry the " · " segments: the
         // classifier routes them by shape into the wired fields.
@@ -506,8 +536,8 @@ struct ELVStarterPackTests {
             "og:description": "★★★★☆ · Restaurant · 22 Hawthorne St, San Francisco",
         ])
         let url = try #require(URL(string: "https://maps.google.com/maps?ftid=0x808f7fc5d3d0f0f9:0x3a0e2"))
-        let record = ELVAssembler.assemble(source: source, context: ELVExtractionContext(url: url, document: document))
-        #expect(record.fields["title"] == .text("Benu"))
+        let record = assembleMetas(document, url: url)
+        #expect(record.fields["label"] == .text("Benu"))
         // A typed 0-5 rating, the key every other source's aggregate uses.
         #expect(record.fields["rating"] == .rating(value: 4.6, scale: 0 ... 5))
         #expect(record.fields["onlineRating"] == nil)
@@ -521,7 +551,7 @@ struct ELVStarterPackTests {
         let bigEndian = ELVDocument(metas: [
             "og:title": "United States, California, Los Angeles, S Western Ave, COIN DE RUE bakery and cafe",
         ])
-        let folded = ELVAssembler.assemble(source: source, context: ELVExtractionContext(url: url, document: bigEndian))
-        #expect(folded.fields["title"] == .text("COIN DE RUE bakery and cafe"))
+        let folded = assembleMetas(bigEndian, url: url)
+        #expect(folded.fields["label"] == .text("COIN DE RUE bakery and cafe"))
     }
 }

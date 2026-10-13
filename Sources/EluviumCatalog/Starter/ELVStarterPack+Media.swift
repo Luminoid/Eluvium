@@ -703,7 +703,8 @@ let starterXiaohongshuJSON = """
           { "from": { "meta": "og:title" }, "pipe": ["trim", { "regexReplace": ["^(?:-\\\\s*)?(?:小红书|rednote|小红书 - 你的生活兴趣社区|你访问的页面不见了|安全限制)$", ""] }] },
           { "from": { "textRegex": "<title[^>]*>([^<]*)</title>" }, "pipe": ["decodeEntities", "trim", { "regexReplace": ["^(?:-\\\\s*)?(?:小红书|rednote|小红书 - 你的生活兴趣社区|你访问的页面不见了|安全限制)$", ""] }] },
           { "from": { "textRegex": "(?s)\\"data\\":\\\\{\\"noteData\\":\\\\{.{0,50000}?\\"desc\\":\\"((?:[^\\"\\\\\\\\]|\\\\\\\\.)*)\\"" },
-            "pipe": [{ "regexReplace": ["\\\\\\\\[nrt][\\\\s\\\\S]*$", ""] }, "collapseWhitespace", "trim"] }
+            "pipe": [{ "regexReplace": ["\\\\\\\\[nrt][\\\\s\\\\S]*$", ""] }, "collapseWhitespace", "trim"] },
+          { "from": { "paste": "title" } }
         ]},
         { "name": "summary", "candidates": [
           { "from": { "textRegex": "(?s)\\"data\\":\\\\{\\"noteData\\":\\\\{.{0,50000}?\\"desc\\":\\"((?:[^\\"\\\\\\\\]|\\\\\\\\.)*)\\"" },
@@ -715,6 +716,7 @@ let starterXiaohongshuJSON = """
           { "from": { "meta": "og:image" }, "pipe": ["resolveURL"], "as": "image" }
         ]}
       ],
+      "label": ["title"],
       "identities": [{ "ns": "xiaohongshu.note", "from": { "field": "externalId" } }],
       "examples": []
     },
@@ -724,6 +726,7 @@ let starterXiaohongshuJSON = """
       "kind": "link",
       "match": { "host": ["xhslink.com", "xhslink.cn"], "path": "/**", "priority": 90 },
       "resolvesVia": "shortlink.expand",
+      "previewAs": { "xhslink.com": "xiaohongshu.post", "xhslink.cn": "xiaohongshu.post" },
       "requires": ["native:shortlink.expand@1"]
     }
 """

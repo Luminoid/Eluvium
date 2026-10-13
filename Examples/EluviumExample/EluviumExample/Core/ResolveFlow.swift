@@ -13,16 +13,19 @@ import LumiKitUI
 /// verdicts) stays at the call sites.
 @MainActor
 enum ResolveFlow {
-    /// What to resolve: a URL through recognition, or a pack-authored seed
-    /// (browse, where recognition is skipped).
+    /// What to resolve: a URL through recognition, a paste (the link plus
+    /// the share text around it), or a pack-authored seed (browse, where
+    /// recognition is skipped).
     enum Input {
         case url(URL, example: ELVExample?)
+        case paste(ELVPastedInput)
         case seed(ELVSource)
 
         /// The host `FailureCopy.unrecognized` names.
         var host: String? {
             switch self {
             case let .url(url, _): url.host
+            case let .paste(input): input.url.host
             case let .seed(source): source.seed.flatMap(URL.init(string:))?.host
             }
         }
@@ -81,17 +84,20 @@ enum ResolveFlow {
         statusBox: StatusBox,
         messagePrefix: String?
     ) async -> ELVPipelineResult {
-        switch input {
-        case let .url(url, example):
-            await ExampleStore.shared.resolve(url: url, example: example) { stage in
-                // Emitted synchronously inside the awaited pipeline run, so
-                // `Task.isCancelled` here is the owning task's flag.
-                guard showsStages, !Task.isCancelled else { return }
-                Task { @MainActor in
-                    guard !handle.isCancelled else { return }
-                    statusBox.label?.show(prefixed("\(stage.rawValue.capitalized)…", with: messagePrefix), status: .neutral)
-                }
+        let progress: @Sendable (ELVPipelineStage) -> Void = { stage in
+            // Emitted synchronously inside the awaited pipeline run, so
+            // `Task.isCancelled` here is the owning task's flag.
+            guard showsStages, !Task.isCancelled else { return }
+            Task { @MainActor in
+                guard !handle.isCancelled else { return }
+                statusBox.label?.show(prefixed("\(stage.rawValue.capitalized)…", with: messagePrefix), status: .neutral)
             }
+        }
+        return switch input {
+        case let .url(url, example):
+            await ExampleStore.shared.resolve(url: url, example: example, progress: progress)
+        case let .paste(input):
+            await ExampleStore.shared.resolve(input: input, progress: progress)
         case let .seed(source):
             await ExampleStore.shared.resolveSeed(sourceId: source.id)
         }

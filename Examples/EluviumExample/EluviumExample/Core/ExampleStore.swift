@@ -69,10 +69,13 @@ final class ExampleStore {
         // Platform-module ops register before the pack loads so the
         // capability gate sees the binary's real roster. EluviumPlaces
         // contributes geo.anchorLadder@1 (the Identity tab's demo) and
-        // place.mapKitLookup@1, which gmaps.place.mapkit runs on a live
-        // Google Maps resolve; registering both keeps every starter source
-        // active. A binary that never resolves places would call
-        // registerAnchorLadder() alone and let the gate skip that source.
+        // place.mapKitLookup, which gmaps.place.mapkit and
+        // applemaps.place.mapkit run on a live Maps resolve; registering
+        // both keeps every starter source active. A binary that never
+        // resolves places would call registerAnchorLadder() alone and let
+        // the gate skip those sources. No geocoder is injected: a host
+        // passes one through its own rate pacer, and without it a pinless
+        // Maps link's street-address anchor is simply skipped.
         ELVNetOps.register()
         ELVPlacesOps.register()
         enumerator = ELVEnumerator(fetcher: fetcher)
@@ -123,24 +126,44 @@ final class ExampleStore {
         await loadTask?.value
     }
 
-    /// Runs one URL through the pipeline. The framework logs the run's
-    /// outcome from its trace; corpus runs pass their `example` so the app
-    /// adds the expectation verdict, the one thing only it knows.
+    /// The paste box's policy: the standard one plus the app schemes the
+    /// starter pack claims (`comgooglemaps://`, `maps://`, `flighty://`).
+    var pastePolicy: ELVPastePolicy {
+        loadedPack.pastePolicy
+    }
+
+    /// The offline reading of a paste: recognition plus every field the
+    /// link and its share text fill, with no network. Routed like
+    /// `resolve`, so a file-pack link previews against the file pack.
+    func preview(_ input: ELVPastedInput) -> ELVPreview {
+        usesFilePack(for: input.url) ? filePack.preview(input) : loadedPack.preview(input)
+    }
+
+    /// Runs one URL through the pipeline (an example, a record's link).
     func resolve(url: URL, example: ELVExample? = nil, progress: @escaping @Sendable (ELVPipelineStage) -> Void) async -> ELVPipelineResult {
+        await resolve(input: ELVPastedInput(url: url), example: example, progress: progress)
+    }
+
+    /// Runs one paste through the pipeline: the link and any share text
+    /// around it, which the pack reads for labels and stats. The framework
+    /// logs the run's outcome from its trace; corpus runs pass their
+    /// `example` so the app adds the expectation verdict, the one thing
+    /// only it knows.
+    func resolve(input: ELVPastedInput, example: ELVExample? = nil, progress: @escaping @Sendable (ELVPipelineStage) -> Void) async -> ELVPipelineResult {
         await ready()
         var result: ELVPipelineResult
-        if usesFilePack(for: url) {
-            result = await activeFilePipeline().run(url: url, progress: progress).result
+        if usesFilePack(for: input.url) {
+            result = await activeFilePipeline().run(input: input, progress: progress).result
         } else {
-            result = await activePipeline().run(url: url, progress: progress).result
+            result = await activePipeline().run(input: input, progress: progress).result
             // The residual seam for a starter pack without generic floors:
             // a truly unrecognized input still tries the file pack.
             if case .unrecognized = result {
-                result = await activeFilePipeline().run(url: url, progress: progress).result
+                result = await activeFilePipeline().run(input: input, progress: progress).result
             }
         }
         if let example {
-            ParseLog.log(example: example, result: result, url: url)
+            ParseLog.log(example: example, result: result, url: input.url)
         }
         return result
     }

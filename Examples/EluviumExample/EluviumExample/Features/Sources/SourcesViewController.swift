@@ -131,7 +131,7 @@ extension SourcesViewController: UITableViewDataSource {
             // The id stays visible: it is the stable handle diagnostics and
             // skip reasons report.
             let subtitle = source.title == nil ? describe(source) : "\(source.id)\(Separator.dot)\(describe(source))"
-            return LMKListRowConfiguration(title: source.title ?? source.id, subtitle: subtitle, trailing: .none, style: rowStyle)
+            return LMKListRowConfiguration(title: source.displayName, subtitle: subtitle, trailing: .none, style: rowStyle)
         case .skipped:
             guard pack.skipped.indices.contains(indexPath.row) else { return nil }
             let skipped = pack.skipped[indexPath.row]
@@ -154,8 +154,10 @@ extension SourcesViewController: UITableViewDataSource {
     }
 
     private func describe(_ source: ELVSource) -> String {
-        var parts = ["kind: \(source.kind)"]
+        let inferred = source.inferredKinds
+        var parts = [inferred.isEmpty ? "kind: \(source.kind)" : "kind: \(inferred.joined(separator: ", ")) (inferred)"]
         if let match = source.match {
+            if !match.schemes.isEmpty { parts.append("scheme: \(match.schemes.joined(separator: ", "))") }
             if !match.hosts.isEmpty { parts.append("host: \(match.hosts.joined(separator: ", "))") }
             if !match.brands.isEmpty { parts.append("brand: \(match.brands.joined(separator: ", "))") }
             if !match.paths.isEmpty { parts.append("path: \(match.paths.joined(separator: " | "))") }

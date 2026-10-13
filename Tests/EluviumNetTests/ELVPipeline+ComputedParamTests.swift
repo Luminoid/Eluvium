@@ -114,20 +114,21 @@ struct ELVPipelineComputedParamTests {
           <meta property="og:description" content="★★★★☆ · Restaurant · 22 Hawthorne St, San Francisco" />
         </head></html>
         """
-        let fetcher = HostFetcher(bodies: ["maps.google.com": html])
+        let fetcher = HostFetcher(bodies: ["www.google.com": html])
         let pipeline = try starterPipeline(fetcher: fetcher)
-        let url = try #require(URL(string: "https://maps.google.com/maps?ftid=0x808f7fc5d3d0f0f9:0x3a0e2"))
+        let url = try #require(URL(string: "https://www.google.com/maps?ftid=0x808f7fc5d3d0f0f9:0x3a0e2"))
         let result = await pipeline.run(url: url).result
         guard case let .record(record) = result else {
             Issue.record("Expected a record, got \(result)")
             return
         }
-        // One fetch: the `none` step yielded no title, so the http(crawler)
-        // step ran once and the classifier routed the segments.
+        // One fetch: the place page's metas, read by the scoped meta step,
+        // and the classifier routed the segments; the URL named nothing, so
+        // the page's name is the label.
         #expect(fetcher.requestedURLs.count == 1)
         #expect(record.sourceId == "gmaps.place")
         #expect(record.externalId == "0x808f7fc5d3d0f0f9:0x3a0e2")
-        #expect(record.fields["title"] == .text("Benu"))
+        #expect(record.fields["label"] == .text("Benu"))
         #expect(record.fields["placeType"] == .text("Fine dining restaurant"))
         #expect(record.fields["category"] == .text("food"))
         #expect(record.fields["rating"] == .rating(value: 4.6, scale: 0 ... 5))

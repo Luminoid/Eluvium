@@ -16,18 +16,24 @@ public enum ELVHostMatcher {
     }
 
     /// TLD-constrained brand match for multi-TLD brands (Amazon's
-    /// storefronts, Google's ccTLDs): the brand must be its own label,
-    /// followed only by a plausible public suffix — a single TLD label
-    /// (`amazon.de`) or a constrained second-level pair (`amazon.co.jp`).
-    /// `amazon.evil.com` fails because `evil` is not an allowed second level.
+    /// storefronts, Google's ccTLDs): the brand must be its own label (or,
+    /// dotted, its own run of labels: `maps.google` for Google Maps' ccTLD
+    /// hosts), followed only by a plausible public suffix — a single TLD
+    /// label (`amazon.de`) or a constrained second-level pair
+    /// (`amazon.co.jp`). `amazon.evil.com` and `maps.google.evil.com` fail
+    /// because `evil` is not an allowed second level.
     public static func hostMatchesBrand(_ host: String, brand: String) -> Bool {
         let host = normalize(host)
         let brand = normalize(brand)
-        guard !host.isEmpty, !brand.isEmpty, !brand.contains(".") else { return false }
+        guard !host.isEmpty, !brand.isEmpty else { return false }
+        let brandLabels = brand.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        guard !brandLabels.contains(where: \.isEmpty) else { return false }
 
         let labels = host.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
-        guard let brandIndex = labels.lastIndex(of: brand) else { return false }
-        let suffix = Array(labels[(brandIndex + 1)...])
+        guard labels.count > brandLabels.count,
+              let brandStart = (0 ... labels.count - brandLabels.count).last(where: { Array(labels[$0 ..< $0 + brandLabels.count]) == brandLabels })
+        else { return false }
+        let suffix = Array(labels[(brandStart + brandLabels.count)...])
         switch suffix.count {
         case 1:
             return isTLDLabel(suffix[0])

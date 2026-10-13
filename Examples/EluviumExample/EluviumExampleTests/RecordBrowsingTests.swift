@@ -203,11 +203,13 @@ struct RecordBrowsingTests {
     }
 
     @Test
-    func `Display title reads the title field and stays nil without one`() {
+    func `Display title prefers the label, then the title, and stays nil without either`() {
         var record = ELVRecord(sourceId: "s", kind: "post")
         #expect(record.displayTitle == nil)
         record.fields["title"] = .text("Grand Prismatic")
         #expect(record.displayTitle == "Grand Prismatic")
+        record.fields["label"] = .text("Grand Prismatic Spring")
+        #expect(record.displayTitle == "Grand Prismatic Spring")
     }
 
     @Test

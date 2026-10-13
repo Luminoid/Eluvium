@@ -27,9 +27,9 @@ struct StoreAndCorpusTests {
         #expect(pack.skipped.isEmpty)
         // The store registered the platform-module ops before loading.
         #expect(ELVNativeOps.isRegistered("shortlink.expand"))
-        #expect(ELVNativeOps.isRegistered("trail.statsFromText@2"))
+        #expect(ELVNativeOps.isRegistered("trail.statsFromText@3"))
         #expect(ELVNativeOps.isRegistered("geo.anchorLadder@1"))
-        #expect(ELVNativeOps.isRegistered("place.mapKitLookup@1"))
+        #expect(ELVNativeOps.isRegistered("place.mapKitLookup@2"))
     }
 
     @Test
@@ -54,13 +54,18 @@ struct StoreAndCorpusTests {
         // (2026-10-11, 2026-10-12): an xhslink short link resolves to its
         // minter's account, and a note loads only with a share-minted token.
         // flighty.flight keeps one share; its others name their traveler.
+        // booking.share expands per-sharer app shares, exempt like xhslink.
         // File sources (the iNaturalist / eBird CSVs, the WeRead notes
         // export) take files, not links; their corpus is fixture text.
-        let exempt: Set = ["komoot.route", "shortlinks.media", "xiaohongshu.post", "flighty.flight"]
+        let exempt: Set = ["komoot.route", "shortlinks.media", "xiaohongshu.post", "flighty.flight", "booking.share"]
         for source in pack.sources where source.seed == nil && !exempt.contains(source.id) && source.match?.file == nil {
             #expect(source.examples.count >= 2, "\(source.id) has \(source.examples.count) examples")
+            // Web links, or an app-scheme source's own scheme (URL-only, so the
+            // pipeline runs them with no network).
+            let schemes = Set(source.match?.schemes ?? [])
             for example in source.examples {
-                #expect(URL(string: example.input)?.scheme?.hasPrefix("http") == true, "\(source.id): \(example.input)")
+                let scheme = URL(string: example.input)?.scheme?.lowercased() ?? ""
+                #expect(scheme.hasPrefix("http") || schemes.contains(scheme), "\(source.id): \(example.input)")
             }
         }
     }
@@ -125,41 +130,87 @@ struct StoreAndCorpusTests {
     }
 
     @Test
-    func `The examples browser groups the corpus by provider without losing rows`() async {
+    func `The examples browser groups the corpus by family without losing rows`() async {
         let browser = ExamplesViewController()
         browser.loadViewIfNeeded()
         // The corpus fills in once the store's background pack load lands.
         await browser.packLoadTask?.value
         let table = UITableView()
 
-        // Grouping rearranges, never drops: every example survives — the
+        // Grouping rearranges, never drops: every example survives, the
         // file pack's rows included.
         let sectionCount = browser.numberOfSections(in: table)
         let totalRows = (0 ..< sectionCount).reduce(0) { $0 + browser.tableView(table, numberOfRowsInSection: $1) }
         #expect(totalRows == ExampleStore.shared.allSources.reduce(0) { $0 + $1.examples.count })
 
+        // One section per family, each once (the pack declares Travel in
+        // three chunks), travel first, the floors after every catalog
+        // family, and the file pack's own section after them.
         let headers = (0 ..< sectionCount).compactMap { browser.tableView(table, titleForHeaderInSection: $0) }
-        // The three Google Maps variants read as ONE provider section, and
-        // the header joins title and kind with the app's one separator.
-        #expect(headers.count(where: { $0.hasPrefix("Google Maps\(Separator.dot)") }) == 1)
-        // The short-link redirector dissolves into destination sections.
-        #expect(!headers.contains { $0.localizedCaseInsensitiveContains("short link") })
-        // Flighty carries one share by owner ruling (the others name their
-        // traveler), so its section is the one allowed a single row.
-        for section in 0 ..< sectionCount where browser.tableView(table, titleForHeaderInSection: section)?.hasPrefix("Flighty") != true {
-            #expect(browser.tableView(table, numberOfRowsInSection: section) >= 2)
+        #expect(Set(headers).count == headers.count)
+        #expect(headers.first == "Travel")
+        #expect(headers.suffix(2) == ["Generic floors", "Bundled file pack"])
+        for family in ["Reference", "Media", "Nature", "Commerce"] {
+            #expect(headers.contains(family), "\(family)")
         }
+        // The short-link redirector dissolves into its destinations.
+        #expect(!headers.contains("Short links"))
     }
 
     @Test
-    func `Short-link examples file under their destination provider's section`() async throws {
+    func `Rows sort by provider within a family and short links file beside their destination`() async throws {
         await ExampleStore.shared.ready()
         let sections = ExampleCorpus.sections(from: ExampleStore.shared.loadedPack.sources)
-        let google = try #require(sections.first { $0.title == "Google Maps" })
-        #expect(google.rows.contains { $0.input.contains("maps.app.goo.gl") })
+        let travel = try #require(sections.first { $0.title == "Travel" })
+        let providers = travel.rows.map(\.provider)
+        let sorted = zip(providers, providers.dropFirst()).allSatisfy { $0.localizedStandardCompare($1) != .orderedDescending }
+        #expect(sorted)
+        // Every Google Maps variant sits in one run, the short link with it.
+        let google = travel.rows.indices.filter { travel.rows[$0].provider == "Google Maps" }
+        #expect(google.count >= 2)
+        #expect(google.last.map { $0 - google[0] + 1 } == google.count)
+        #expect(google.contains { travel.rows[$0].example.input.contains("maps.app.goo.gl") })
+        // Each row carries its own source's kind (directions are routes).
+        #expect(travel.rows.contains { $0.provider == "Google Maps" && $0.kind == "route" })
+        #expect(travel.rows.contains { $0.provider == "Google Maps" && $0.kind == "place" })
         // Every short-link host in the corpus has a destination mapping, so
         // the explicit fallback section never appears with this pack.
         #expect(!sections.contains { $0.title == "Short links" })
+    }
+
+    @Test
+    func `Chinese source names carry their pinyin and sort by it`() async throws {
+        #expect(ChineseName.annotated("豆瓣") == "豆瓣 (Douban)")
+        // A one-character word joins the word before it, as brand names
+        // are written.
+        #expect(ChineseName.annotated("小红书") == "小红书 (Xiaohongshu)")
+        #expect(ChineseName.annotated("小宇宙") == "小宇宙 (Xiaoyuzhou)")
+        #expect(ChineseName.annotated("微信读书笔记导出") == "微信读书笔记导出 (Weixin Dushu Biji Daochu)")
+        #expect(ChineseName.annotated("小红书 short links") == "小红书 (Xiaohongshu) short links")
+        #expect(ChineseName.annotated("Google Maps") == "Google Maps")
+        #expect(ChineseName.romanized("豆瓣") == "Douban")
+
+        await ExampleStore.shared.ready()
+        let media = try #require(ExampleCorpus.sections(from: ExampleStore.shared.loadedPack.sources).first { $0.title == "Media" })
+        let providers = media.rows.map(\.provider)
+        // 豆瓣 sorts under D, ahead of IGN, not after every Latin name.
+        let douban = try #require(providers.firstIndex(of: "豆瓣 (Douban)"))
+        let ign = try #require(providers.firstIndex(of: "IGN"))
+        #expect(douban < ign)
+    }
+
+    @Test
+    func `A source that infers its kind shows each example's kind`() async throws {
+        await ExampleStore.shared.ready()
+        let douban = try #require(ExampleStore.shared.loadedPack.source(withId: "douban.subject"))
+        // Douban authors no kind: it infers one per link.
+        #expect(douban.kind.isEmpty)
+        #expect(douban.inferredKinds == ["album", "book", "game", "movie"])
+        let rows = ExampleCorpus.sections(from: ExampleStore.shared.loadedPack.sources)
+            .flatMap(\.rows)
+            .filter { $0.provider == douban.displayName }
+        #expect(Set(rows.map(\.kind)) == ["album", "book", "game", "movie"])
+        #expect(!rows.contains { $0.kind.isEmpty })
     }
 
     @Test
@@ -204,11 +255,34 @@ struct StoreAndCorpusTests {
     }
 
     @Test
-    func `The input parser pulls a URL out of a plain link and a share blurb`() {
-        #expect(InputParser.firstURL(in: "https://pokeapi.co/api/v2/pokemon/25")?.host == "pokeapi.co")
-        #expect(InputParser.firstURL(in: "Check this out https://swift.org/ great")?.host == "swift.org")
-        #expect(InputParser.firstURL(in: "just some text") == nil)
-        #expect(InputParser.firstURL(in: "ftp://example.com/file") == nil)
+    func `The paste box reads links, share text, bare hosts, and the pack's app links`() async throws {
+        await ExampleStore.shared.ready()
+        let policy = ExampleStore.shared.pastePolicy
+        #expect(InputParser.input(in: "https://pokeapi.co/api/v2/pokemon/25", policy: policy)?.url.host == "pokeapi.co")
+        let blurb = try #require(InputParser.input(in: "Check this out https://swift.org/ great", policy: policy))
+        #expect(blurb.url.host == "swift.org")
+        #expect(blurb.leadingText == "Check this out")
+        // A link box reads a bare host the strict TLD list doesn't know.
+        #expect(InputParser.input(in: "example.museum/x", policy: policy)?.url.absoluteString == "https://example.museum/x")
+        // The starter pack claims the Maps app scheme, so its policy does.
+        #expect(InputParser.input(in: "comgooglemaps://?q=Tokyo+Tower", policy: policy) != nil)
+        #expect(InputParser.input(in: "just some text", policy: policy) == nil)
+        #expect(InputParser.input(in: "ftp://example.com/file", policy: policy) == nil)
+    }
+
+    @Test
+    func `The paste preview names the record offline and says what Resolve adds`() async throws {
+        await ExampleStore.shared.ready()
+        let policy = ExampleStore.shared.pastePolicy
+        // The share text's name labels the record before any fetch.
+        let trail = try #require(InputParser.input(in: "Mist Trail on AllTrails https://www.alltrails.com/trail/us/california/mist-trail", policy: policy))
+        let preview = ExampleStore.shared.preview(trail)
+        #expect(preview.sourceId == "alltrails.trail")
+        #expect(preview.record.displayTitle == "Mist Trail")
+        #expect(PreviewCopy.line(for: preview) == "Preview: Mist Trail · alltrails.trail · Resolve will fetch the page")
+        // A link no source claims previews as its host, for the floor to read.
+        let page = try #require(InputParser.input(in: "https://www.example.org/a", policy: policy))
+        #expect(PreviewCopy.line(for: ExampleStore.shared.preview(page)) == "Preview: example.org · no source matched · Resolve will read the page")
     }
 
     @Test

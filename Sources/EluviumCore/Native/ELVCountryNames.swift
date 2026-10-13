@@ -60,3 +60,27 @@ enum ELVCountryNames {
         return code(for: trimmed) != nil
     }
 }
+
+/// Public country lookups over the same table, for modules outside Core
+/// (the Places address-anchor plausibility check).
+public enum ELVCountry {
+    /// The ISO code for "Italy", "italy", "IT", "USA"; nil when nothing
+    /// matches.
+    public static func code(for input: String?) -> String? {
+        ELVCountryNames.code(for: input)
+    }
+
+    /// The ISO code an address's last comma component names, digits
+    /// dropped ("Jr. de la Unión 621, Lima 15001, Peru" → "PE"); nil when the
+    /// tail names no country.
+    public static func code(fromAddressTail address: String?) -> String? {
+        guard let last = address?.split(separator: ",").last else { return nil }
+        let cleaned = last.filter { !$0.isNumber }.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ELVCountryNames.code(for: cleaned)
+    }
+
+    /// True when the text is spelled out as a country rather than a place.
+    public static func namesCountry(_ input: String?) -> Bool {
+        ELVCountryNames.namesCountry(input)
+    }
+}

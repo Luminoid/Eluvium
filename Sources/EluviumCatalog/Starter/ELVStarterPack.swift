@@ -256,8 +256,8 @@ let starterPackChunks: [ELVStarterChunk] = [
 private let starterPackPrologueJSON = """
 {
   "schemaVersion": 1,
-  "schemaMinor": 4,
-  "packVersion": "2026.10.12-starter.1",
+  "schemaMinor": 5,
+  "packVersion": "2026.10.13-starter.1",
   "strongNamespaces": [
     "gmaps.feature", "applemaps.place", "komoot.tour",
     "x.tweet", "spotify", "applemusic.album", "applemusic.song", "xiaoyuzhou.podcast", "xiaoyuzhou.episode",
@@ -308,10 +308,41 @@ private let starterPackPrologueJSON = """
     },
     "trailStats": {
       "fields": [
-        { "name": "distance", "candidates": [{ "from": { "native": "trail.statsFromText@2" }, "select": "distance" }] },
-        { "name": "difficulty", "candidates": [{ "from": { "native": "trail.statsFromText@2" }, "select": "difficulty" }] },
-        { "name": "duration", "candidates": [{ "from": { "native": "trail.statsFromText@2" }, "select": "duration" }] }
+        { "name": "distance", "candidates": [
+          { "from": { "native": "trail.statsFromText@3", "input": { "text": "$paste.text?" } }, "select": "distance" }
+        ]},
+        { "name": "difficulty", "candidates": [
+          { "from": { "native": "trail.statsFromText@3", "input": { "text": "$paste.text?" } }, "select": "difficulty" }
+        ]},
+        { "name": "duration", "candidates": [
+          { "from": { "native": "trail.statsFromText@3", "input": { "text": "$paste.text?" } }, "select": "duration" }
+        ]},
+        { "name": "trailStatSources", "candidates": [
+          { "from": { "native": "trail.statsFromText@3", "input": { "text": "$paste.text?" } }, "select": "sources" }
+        ]}
       ]
+    },
+    "placeNode": {
+      "fields": [
+        { "name": "placeName", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" }] },
+        { "name": "address", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "address" }] },
+        { "name": "phone", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "phone" }] },
+        { "name": "geo", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "geo" }] },
+        { "name": "cuisine", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "cuisine" }] },
+        { "name": "rating", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "rating" }] },
+        { "name": "hotelStars", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "hotelStars" }] },
+        { "name": "price", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "price" }] },
+        { "name": "duration", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "duration" }] },
+        { "name": "placeCategory", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "category" }] },
+        { "name": "placeDescription", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "description" }] }
+      ]
+    },
+    "placePage": {
+      "fetch": { "mode": "composite", "steps": [
+        { "mode": "none" },
+        { "mode": "http", "ua": "desktopSafari" },
+        { "mode": "dom", "ua": "desktopSafari", "settle": { "signals": ["jsonld", "og:title", "h1"] }, "when": "placeThin" }
+      ]}
     },
     "httpEscalate": {
       "fetch": { "mode": "composite", "steps": [
@@ -324,7 +355,8 @@ private let starterPackPrologueJSON = """
         { "name": "title", "candidates": [
           { "from": { "meta": "og:title" } },
           { "from": { "meta": "twitter:title" } },
-          { "from": { "textRegex": "<title[^>]*>([\\\\s\\\\S]*?)</title>" }, "pipe": ["decodeEntities", "collapseWhitespace", "trim"] }
+          { "from": { "textRegex": "<title[^>]*>([\\\\s\\\\S]*?)</title>" }, "pipe": ["decodeEntities", "collapseWhitespace", "trim",
+            { "regexReplace": ["^(?:Access Denied|Just a moment\\\\.\\\\.\\\\.|Attention Required! \\\\| Cloudflare|Pardon Our Interruption|Bot or Not\\\\?)$", ""] }] }
         ]},
         { "name": "summary", "candidates": [
           { "from": { "meta": "og:description" } },
@@ -339,7 +371,9 @@ private let starterPackPrologueJSON = """
   },
   "triggers": {
     "blockedOrThin": { "anyOf": [{ "status": [403, 429, 503] }, { "emptyRecord": true }, { "missingAny": ["title"] }] },
-    "noTweetText": { "anyOf": [{ "status": [403, 404, 429] }, { "emptyRecord": true }, { "missingAny": ["text"] }] }
+    "noTweetText": { "anyOf": [{ "status": [403, 404, 429] }, { "emptyRecord": true }, { "missingAny": ["text"] }] },
+    "placeThin": { "anyOf": [{ "status": [403, 429, 503] }, { "missingAny": ["placeName"] }] },
+    "trailThin": { "anyOf": [{ "status": [403, 429, 503] }, { "emptyRecord": true }, { "missingAny": ["distance", "difficulty", "duration"] }] }
   },
   "sources": [
 """

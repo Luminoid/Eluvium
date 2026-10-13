@@ -8,9 +8,13 @@ import Foundation
 /// gating, not half-working.
 public enum ELVPlacesOps {
     /// `searcher` is injectable for tests; production uses MapKit.
-    public static func register(searcher: any ELVPlaceSearching = ELVMapKitPlaceSearch()) {
+    /// `geocoder` serves `place.mapKitLookup@2`'s address anchor and
+    /// locality backfill; without one that rung never anchors (no valid
+    /// anchor, no pin).
+    public static func register(searcher: any ELVPlaceSearching = ELVMapKitPlaceSearch(), geocoder: (any ELVGeocoding)? = nil) {
         registerAnchorLadder()
         registerMapKitLookup(searcher: searcher)
+        registerMapKitLookupV2(searcher: searcher, geocoder: geocoder)
     }
 
     /// `geo.anchorLadder@1`: the pure trust decision over coordinates the
@@ -72,6 +76,50 @@ public enum ELVPlacesOps {
                     if let phone = place.phone { outputs["phone"] = .text(phone) }
                     if let category = place.category { outputs["category"] = .text(category) }
                 }
+            }
+            return outputs.isEmpty ? nil : outputs
+        }
+    }
+
+    /// `place.mapKitLookup@2`: `ELVPlaceResolver.lookup`, the address-
+    /// anchored lookup. Inputs: `name`, `locality` (a URL-borne locality
+    /// tail, the address the anchor geocodes), the `urlLat`/`urlLng` pin and
+    /// `viewportLat`/`viewportLng` hint, and the `pinMeters` /
+    /// `addressMeters` / `regionMeters` radii (`ELVPlaceLookupPolicy`
+    /// clamps them). Outputs `geo` + `origin` only when a trusted anchor
+    /// vouched for the coordinate, plus the match's `name`, `address`,
+    /// `locality` ("City, Region"; the reverse-geocoded anchor's on a
+    /// miss), `phone`, and raw `category`.
+    private static func registerMapKitLookupV2(searcher: any ELVPlaceSearching, geocoder: (any ELVGeocoding)?) {
+        let resolver = ELVPlaceResolver(searcher: searcher)
+        ELVNativeOps.registerAsync("place.mapKitLookup", version: 2) { input, _ in
+            guard let name = input["name"], !name.isEmpty else { return nil }
+            let policy = ELVPlaceLookupPolicy(
+                pinMeters: input["pinMeters"].flatMap(Double.init) ?? 50000,
+                addressMeters: input["addressMeters"].flatMap(Double.init) ?? 2000,
+                regionMeters: input["regionMeters"].flatMap(Double.init) ?? 20000
+            )
+            guard let resolution = try await resolver.lookup(
+                name: name,
+                locality: input["locality"],
+                urlPin: point(input, "urlLat", "urlLng"),
+                viewport: point(input, "viewportLat", "viewportLng"),
+                policy: policy,
+                geocoder: geocoder
+            ) else { return nil }
+            var outputs: [String: ELVValue] = [:]
+            if let point = resolution.point {
+                outputs["geo"] = .geo(latitude: point.latitude, longitude: point.longitude)
+            }
+            if let origin = resolution.origin { outputs["origin"] = .text(origin.rawValue) }
+            if let place = resolution.place {
+                outputs["name"] = .text(place.name)
+                if let address = place.address { outputs["address"] = .text(address) }
+                if let locality = place.localitySubtitle { outputs["locality"] = .text(locality) }
+                if let phone = place.phone { outputs["phone"] = .text(phone) }
+                if let category = place.category { outputs["category"] = .text(category) }
+            } else if let locality = resolution.reverseLocality {
+                outputs["locality"] = .text(locality)
             }
             return outputs.isEmpty ? nil : outputs
         }

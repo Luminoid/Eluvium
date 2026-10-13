@@ -23,10 +23,8 @@
 /// short hosts rode this redirector until 2026-10-11; they are
 /// `shortlinks.media` in the Xiaohongshu chunk now, so a media-only
 /// curation keeps its own expander (a family's expander lives in its
-/// family). Booking's `/Share-…` short link is deliberately NOT a redirector row:
-/// match paths are segment-literal (no in-segment prefix), so a `/Share-`
-/// scope is inexpressible and a broader claim would swallow real booking
-/// pages — those links fall to the OpenGraph floor.
+/// family). Booking's `/Share-…` short link was left to the OpenGraph floor
+/// here; the 2026-10-13 pass below gives it a redirector row.
 ///
 /// The second 2026-08-21 pass wires the remaining native ops end to end:
 /// `gmaps.place` becomes a `none` → http(crawler) composite (escalating
@@ -96,6 +94,42 @@
 /// and `<title>` after the JSON-LD name, and a shell page's generic
 /// `<title>` would then satisfy `blockedOrThin` and stop the dom
 /// escalation its `missingAny: [title]` exists for.
+/// The 2026-10-13 pass (schemaMinor 5): the travel family as a paste
+/// flow's engine. Every travel source declares a `label` ladder whose
+/// order is the precedence (a page-derived name, then the share blurb's
+/// `{"paste": "label"}` name, then the URL slug, then the brand), so a
+/// host gets one display label per record and an offline preview of it.
+/// Redirectors carry `previewAs` hints (the short host's landing source)
+/// for that preview. New rows: `booking.share` (a glued-prefix
+/// `/Share-:token` capture, which the path grammar has had since minor 2),
+/// `gmaps.directions`, the app-scheme sources (`gmaps.applink`,
+/// `applemaps.applink`, `flighty.applink`; URL-only, so an app link never
+/// leaves the device), `applemaps.place.mapkit` (Apple Maps' MapKit
+/// shadow, on maps.apple.com only so the bare maps.apple short host stays
+/// the redirector's), `flighty.link` (flighty.app deep links, URL-only),
+/// and `dining.reservations`. The Google place sources match any Google
+/// ccTLD by brand, read the place page's metas in a step scoped to the
+/// meta fields (fetched at `{origin}`, the share page a canonical capture
+/// rewrote, which serves the rating and type), and the MapKit shadow uses
+/// `place.mapKitLookup@2` (the address-anchored lookup) through ONE input
+/// map of optional `$field.x?` references, so the walk runs one search.
+/// `gmaps.share` claims the bare `/` and `/maps` paths on any
+/// `maps.google.*` host and renders only while the URL carried no pin.
+/// Trails move to `trail.statsFromText@3` over a dom step's rendered
+/// regions (an unanchored body never contributes) with `trail.locality@1`;
+/// the dom rung also fires while any stat is missing (`trailThin`). The
+/// lodging, tour, and review sources fetch their page (`placePage`: URL
+/// first, then http, then a render while no place node was found) and
+/// read it through `placeNode` (`jsonld.bestPlaceNode@1`); a page's name
+/// now outranks the URL slug. Vrbo stays URL-only: a corpus run fetched a
+/// delisted id's redirect to a search page (wrong summary and image) and
+/// a wall page titled "Bot or Not?". AllTrails, Booking.com, and Yelp claim
+/// their whole site behind the detail path (a search or list page is still
+/// that provider's link, labeled with the brand). Flighty strips the
+/// og:title's "Track " lead
+/// and exposes both airport time zones; Airbnb and Hostelworld join the
+/// page flow. Kind-only examples on sources that now fetch were dropped
+/// (they would pass on an empty page).
 let starterTravelMapsJSON = """
     {
       "id": "shortlinks.travel",
@@ -103,6 +137,10 @@ let starterTravelMapsJSON = """
       "kind": "link",
       "match": { "host": ["maps.app.goo.gl", "goo.gl", "g.co", "maps.apple", "yelp.to", "abnb.me", "gyg.me"], "path": "/**", "priority": 90 },
       "resolvesVia": "shortlink.expand",
+      "previewAs": {
+        "maps.app.goo.gl": "gmaps.place", "goo.gl": "gmaps.place", "g.co": "gmaps.place", "maps.apple": "applemaps.place",
+        "yelp.to": "yelp.review", "abnb.me": "airbnb.lodging", "gyg.me": "gyg.tour"
+      },
       "requires": ["native:shortlink.expand@1"],
       "examples": [
         { "input": "https://maps.app.goo.gl/372N2pn6HcSTEA4w6", "expect": { "kind": "place", "nonEmpty": ["title"] } },
@@ -111,23 +149,68 @@ let starterTravelMapsJSON = """
       ]
     },
     {
+      "id": "booking.share",
+      "title": "Booking.com",
+      "kind": "link",
+      "match": { "host": ["booking.com"], "path": "/Share-:token", "priority": 110 },
+      "resolvesVia": "shortlink.expand",
+      "previewAs": { "booking.com": "booking.lodging" },
+      "requires": ["native:shortlink.expand@1"],
+      "examples": []
+    },
+    {
+      "id": "gmaps.directions",
+      "title": "Google Maps",
+      "kind": "route",
+      "match": { "brand": ["google"], "path": "/maps/dir/**", "priority": 120 },
+      "fetch": { "mode": "none" },
+      "fields": [
+        { "name": "geo", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" }] },
+        { "name": "viewport", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportGeo" }] },
+        { "name": "stops", "candidates": [
+          { "from": { "urlRegex": "/maps/dir/([^@?#]+?)/?(?:@|[?#]|$)" }, "pipe": [{ "regexReplace": ["[+]", " "] }, "decodePercent", { "regexReplace": ["/", " → "] }, "trim"] }
+        ]}
+      ],
+      "requires": ["native:maps.pinCoordinate@1"],
+      "examples": [
+        { "input": "https://www.google.com/maps/dir/San+Francisco/Los+Angeles", "expect": { "kind": "route", "nonEmpty": ["stops"] } },
+        { "input": "https://www.google.com/maps/dir/Jackson/Moose", "expect": { "kind": "route", "nonEmpty": ["stops"] } }
+      ]
+    },
+    {
       "id": "gmaps.place",
       "title": "Google Maps",
       "kind": "place",
-      "match": { "host": ["google.com", "maps.google.com"], "path": "/maps/**", "priority": 100 },
-      "use": ["gmapsMetas"],
+      "match": { "brand": ["google"], "path": "/maps/**", "priority": 100 },
       "fetch": { "mode": "composite", "steps": [
         { "mode": "none" },
-        { "mode": "http", "ua": "crawler", "when": { "missingAny": ["title"] } }
+        { "mode": "http", "ua": "crawler", "url": "{origin}", "fields": [
+          { "name": "metaNameRaw", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "name" }] },
+          { "name": "metaName", "candidates": [
+            { "from": { "native": "place.littleEndianLabel@1", "input": { "label": "$field.metaNameRaw" } }, "select": "label",
+              "pipe": [{ "split": "," }, "first", "trim"] }
+          ]},
+          { "name": "address", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "address" }] },
+          { "name": "locality", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "locality" }] },
+          { "name": "placeType", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "type" }] },
+          { "name": "category", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "category" }] },
+          { "name": "rating", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "rating" }] }
+        ]}
       ]},
       "fields": [
         { "name": "externalId", "candidates": [
           { "from": { "urlRegex": "!1s(0x[0-9a-f]+:0x[0-9a-f]+)" } },
           { "from": { "urlQuery": "ftid" } }
         ]},
+        { "name": "title", "candidates": [
+          { "from": { "native": "maps.splitPlaceLabel@1" }, "select": "name" },
+          { "from": { "paste": "label" } }
+        ]},
+        { "name": "locality", "candidates": [{ "from": { "native": "maps.splitPlaceLabel@1" }, "select": "locality" }] },
         { "name": "geo", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" }] },
         { "name": "viewport", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportGeo" }] }
       ],
+      "label": ["title", "metaName"],
       "identities": [
         { "ns": "gmaps.feature", "from": { "urlRegex": "!1s(0x[0-9a-f]+:0x[0-9a-f]+)" } },
         { "ns": "gmaps.feature", "from": { "urlQuery": "ftid" } }
@@ -135,6 +218,8 @@ let starterTravelMapsJSON = """
       "requires": ["native:maps.pinCoordinate@1", "native:maps.splitPlaceLabel@1", "native:maps.classifyMetaSegments@1", "native:place.littleEndianLabel@1"],
       "examples": [
         { "input": "https://www.google.com/maps/place/Jenny+Lake/@43.7904,-110.7624,15z/data=!8m2!3d43.7904!4d-110.7624", "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } },
+        { "input": "https://www.google.co.jp/maps/place/Tokyo+Tower/@35.6585805,139.7454329,17z/data=!8m2!3d35.6585805!4d139.7454329",
+          "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } },
         { "input": "https://www.google.com/maps/place/Golden+Gate+Bridge/@37.8199286,-122.4782551,17z/data=!8m2!3d37.8199286!4d-122.4782551",
           "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } }
       ]
@@ -143,70 +228,81 @@ let starterTravelMapsJSON = """
       "id": "gmaps.place.mapkit",
       "title": "Google Maps",
       "kind": "place",
-      "match": { "host": ["google.com", "maps.google.com"], "path": "/maps/**", "priority": 110 },
-      "use": ["gmapsMetas"],
+      "match": { "brand": ["google"], "path": "/maps/**", "priority": 110 },
       "fetch": { "mode": "composite", "steps": [
         { "mode": "none" },
-        { "mode": "http", "ua": "crawler", "when": { "missingAny": ["title"] } }
+        { "mode": "http", "ua": "crawler", "url": "{origin}", "fields": [
+          { "name": "metaNameRaw", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "name" }] },
+          { "name": "metaName", "candidates": [
+            { "from": { "native": "place.littleEndianLabel@1", "input": { "label": "$field.metaNameRaw" } }, "select": "label",
+              "pipe": [{ "split": "," }, "first", "trim"] }
+          ]},
+          { "name": "address", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "address" }] },
+          { "name": "locality", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "locality" }] },
+          { "name": "placeType", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "type" }] },
+          { "name": "category", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "category" }] },
+          { "name": "rating", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "rating" }] }
+        ]}
       ]},
       "fields": [
         { "name": "externalId", "candidates": [
           { "from": { "urlRegex": "!1s(0x[0-9a-f]+:0x[0-9a-f]+)" } },
           { "from": { "urlQuery": "ftid" } }
         ]},
-        { "name": "metaName", "candidates": [{ "from": { "native": "maps.classifyMetaSegments@1" }, "select": "name" }] },
         { "name": "title", "candidates": [
           { "from": { "native": "maps.splitPlaceLabel@1" }, "select": "name" },
-          { "from": { "native": "place.littleEndianLabel@1", "input": { "label": "$field.metaName" } }, "select": "label",
-            "pipe": [{ "split": "," }, "first", "trim"] }
+          { "from": { "paste": "label" } }
         ]},
+        { "name": "urlLocality", "candidates": [{ "from": { "native": "maps.splitPlaceLabel@1" }, "select": "locality" }] },
         { "name": "pinLat", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "lat" }] },
         { "name": "pinLng", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "lng" }] },
         { "name": "viewportLat", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportLat" }] },
         { "name": "viewportLng", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportLng" }] },
         { "name": "locality", "candidates": [
-          { "from": { "native": "maps.splitPlaceLabel@1" }, "select": "locality" },
-          { "from": { "native": "maps.classifyMetaSegments@1" }, "select": "locality" },
-          { "from": { "native": "place.mapKitLookup@1", "input": { "name": "$field.title", "urlLat": "$field.pinLat", "urlLng": "$field.pinLng" } },
-            "select": "locality" },
-          { "from": { "native": "place.mapKitLookup@1", "input": { "name": "$field.title", "viewportLat": "$field.viewportLat", "viewportLng": "$field.viewportLng" } },
-            "select": "locality" }
+          { "from": { "field": "urlLocality" } },
+          { "from": { "native": "place.mapKitLookup@2", "input": {
+              "name": "$field.title", "locality": "$field.urlLocality?",
+              "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+            } }, "select": "locality" }
         ]},
-        { "name": "address", "candidates": [
-          { "from": { "native": "maps.classifyMetaSegments@1" }, "select": "address" },
-          { "from": { "native": "place.mapKitLookup@1", "input": { "name": "$field.title", "urlLat": "$field.pinLat", "urlLng": "$field.pinLng" } },
-            "select": "address" },
-          { "from": { "native": "place.mapKitLookup@1", "input": { "name": "$field.title", "viewportLat": "$field.viewportLat", "viewportLng": "$field.viewportLng" } },
-            "select": "address" }
-        ]},
-        { "name": "phone", "candidates": [
-          { "from": { "native": "place.mapKitLookup@1", "input": { "name": "$field.title", "urlLat": "$field.pinLat", "urlLng": "$field.pinLng" } },
-            "select": "phone" },
-          { "from": { "native": "place.mapKitLookup@1", "input": { "name": "$field.title", "viewportLat": "$field.viewportLat", "viewportLng": "$field.viewportLng" } },
-            "select": "phone" }
-        ]},
-        { "name": "category", "candidates": [
-          { "from": { "native": "maps.classifyMetaSegments@1" }, "select": "category" },
-          { "from": { "native": "place.mapKitLookup@1", "input": { "name": "$field.title", "urlLat": "$field.pinLat", "urlLng": "$field.pinLng" } },
-            "select": "category" }
-        ]},
+        { "name": "address", "candidates": [{ "from": { "native": "place.mapKitLookup@2", "input": {
+            "name": "$field.title", "locality": "$field.urlLocality?",
+            "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+          } }, "select": "address" }] },
+        { "name": "phone", "candidates": [{ "from": { "native": "place.mapKitLookup@2", "input": {
+            "name": "$field.title", "locality": "$field.urlLocality?",
+            "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+          } }, "select": "phone" }] },
+        { "name": "poiCategory", "candidates": [{ "from": { "native": "place.mapKitLookup@2", "input": {
+            "name": "$field.title", "locality": "$field.urlLocality?",
+            "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+          } }, "select": "category" }] },
         { "name": "geo", "candidates": [
-          { "from": { "native": "place.mapKitLookup@1", "input": { "name": "$field.title", "urlLat": "$field.pinLat", "urlLng": "$field.pinLng" } },
-            "select": "geo" },
-          { "from": { "native": "geo.anchorLadder@1", "input": { "urlLat": "$field.pinLat", "urlLng": "$field.pinLng" } }, "select": "geo" }
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" },
+          { "from": { "native": "place.mapKitLookup@2", "input": {
+              "name": "$field.title", "locality": "$field.urlLocality?",
+              "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+            } }, "select": "geo" }
         ]},
+        { "name": "geoOrigin", "candidates": [{ "from": { "native": "place.mapKitLookup@2", "input": {
+            "name": "$field.title", "locality": "$field.urlLocality?",
+            "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+          } }, "select": "origin" }] },
         { "name": "viewport", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportGeo" }] }
       ],
+      "label": ["title", "metaName"],
       "identities": [
         { "ns": "gmaps.feature", "from": { "urlRegex": "!1s(0x[0-9a-f]+:0x[0-9a-f]+)" } },
         { "ns": "gmaps.feature", "from": { "urlQuery": "ftid" } }
       ],
       "requires": [
         "native:maps.pinCoordinate@1", "native:maps.splitPlaceLabel@1", "native:maps.classifyMetaSegments@1",
-        "native:place.littleEndianLabel@1", "native:place.mapKitLookup@1", "native:geo.anchorLadder@1"
+        "native:place.littleEndianLabel@1", "native:place.mapKitLookup@2"
       ],
       "examples": [
         { "input": "https://www.google.com/maps/place/Jenny+Lake/@43.7904,-110.7624,15z/data=!8m2!3d43.7904!4d-110.7624", "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } },
+        { "input": "https://www.google.co.jp/maps/place/Tokyo+Tower/@35.6585805,139.7454329,17z/data=!8m2!3d35.6585805!4d139.7454329",
+          "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } },
         { "input": "https://www.google.com/maps/place/Golden+Gate+Bridge/@37.8199286,-122.4782551,17z/data=!8m2!3d37.8199286!4d-122.4782551",
           "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } }
       ]
@@ -215,22 +311,53 @@ let starterTravelMapsJSON = """
       "id": "gmaps.share",
       "title": "Google Maps",
       "kind": "place",
-      "match": { "host": ["maps.google.com"], "path": "/**", "priority": 95 },
+      "match": { "brand": ["maps.google"], "path": ["/", "/maps"], "priority": 120 },
       "use": ["gmapsMetas"],
-      "fetch": { "mode": "dom", "ua": "desktopSafari",
-        "settle": { "signals": ["h1", "og:title"], "pollSeconds": 1, "maxPolls": 20 },
-        "captureCanonical": { "until": { "urlRegex": "/maps/place/.*!3d-?[0-9.]+!4d-?[0-9.]+" }, "maxPolls": 20 } },
+      "fetch": { "mode": "composite", "steps": [
+        { "mode": "none" },
+        { "mode": "dom", "ua": "desktopSafari", "when": { "missingAny": ["geo"] },
+          "settle": { "signals": ["h1", "og:title"], "pollSeconds": 1, "maxPolls": 20 },
+          "captureCanonical": { "until": { "urlRegex": "/maps/place/.*!3d-?[0-9.]+!4d-?[0-9.]+" }, "maxPolls": 20 } }
+      ]},
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlQuery": "ftid" } }] },
-        { "name": "geo", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" }] }
+        { "name": "title", "candidates": [
+          { "from": { "native": "maps.splitPlaceLabel@1" }, "select": "name" },
+          { "from": { "paste": "label" } }
+        ]},
+        { "name": "geo", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" }] },
+        { "name": "viewport", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportGeo" }] }
       ],
+      "label": ["title", "metaName"],
       "identities": [{ "ns": "gmaps.feature", "from": { "urlQuery": "ftid" } }],
       "requires": ["native:maps.pinCoordinate@1", "native:maps.splitPlaceLabel@1", "native:maps.classifyMetaSegments@1", "native:place.littleEndianLabel@1"],
       "examples": [
         { "input": "https://maps.google.com/?q=Grand+Prismatic", "expect": { "kind": "place", "nonEmpty": ["title"] } },
-        { "input": "https://maps.google.com/?q=Grand+Prismatic+Spring+Overlook,+Yellowstone+National+Park,+WY",
+        { "input": "https://maps.google.com/maps?q=Grand+Prismatic+Spring+Overlook,+Yellowstone+National+Park,+WY",
           "expect": { "kind": "place", "nonEmpty": ["title", "locality"] } },
         { "input": "https://maps.google.com/?q=48.858,2.294", "expect": { "kind": "place", "nonEmpty": ["geo"] } }
+      ]
+    },
+    {
+      "id": "gmaps.applink",
+      "title": "Google Maps",
+      "kind": "place",
+      "match": { "scheme": ["comgooglemaps"], "priority": 100 },
+      "fetch": { "mode": "none" },
+      "fields": [
+        { "name": "title", "candidates": [
+          { "from": { "native": "maps.splitPlaceLabel@1" }, "select": "name" },
+          { "from": { "paste": "label" } }
+        ]},
+        { "name": "locality", "candidates": [{ "from": { "native": "maps.splitPlaceLabel@1" }, "select": "locality" }] },
+        { "name": "geo", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" }] },
+        { "name": "viewport", "candidates": [{ "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportGeo" }] }
+      ],
+      "label": ["title"],
+      "requires": ["native:maps.pinCoordinate@1", "native:maps.splitPlaceLabel@1"],
+      "examples": [
+        { "input": "comgooglemaps://?q=Tokyo+Tower", "expect": { "kind": "place", "nonEmpty": ["title"] } },
+        { "input": "comgooglemaps://?q=48.858,2.294", "expect": { "kind": "place", "nonEmpty": ["geo"] } }
       ]
     },
     {
@@ -241,13 +368,17 @@ let starterTravelMapsJSON = """
       "fetch": { "mode": "none" },
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlQuery": "place-id" } }] },
-        { "name": "title", "candidates": [{ "from": { "native": "maps.splitPlaceLabel@1" }, "select": "name" }] },
+        { "name": "title", "candidates": [
+          { "from": { "native": "maps.splitPlaceLabel@1" }, "select": "name" },
+          { "from": { "paste": "label" } }
+        ]},
         { "name": "locality", "candidates": [{ "from": { "native": "maps.splitPlaceLabel@1" }, "select": "locality" }] },
         { "name": "geo", "candidates": [
           { "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" },
           { "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportGeo" }
         ]}
       ],
+      "label": ["title"],
       "identities": [{ "ns": "applemaps.place", "from": { "urlQuery": "place-id" } }],
       "requires": ["native:maps.pinCoordinate@1", "native:maps.splitPlaceLabel@1"],
       "examples": [
@@ -255,6 +386,87 @@ let starterTravelMapsJSON = """
         { "input": "https://maps.apple.com/?q=Jenny+Lake,+Wyoming&sll=43.75,-110.72", "expect": { "kind": "place", "nonEmpty": ["title", "locality"] } },
         { "input": "https://maps.apple.com/?q=48.8584,2.2945", "expect": { "kind": "place", "nonEmpty": ["geo"] } },
         { "input": "https://maps.apple.com/?q=Golden+Gate+Bridge", "expect": { "kind": "place", "nonEmpty": ["title"] } }
+      ]
+    },
+    {
+      "id": "applemaps.place.mapkit",
+      "title": "Apple Maps",
+      "kind": "place",
+      "match": { "host": ["maps.apple.com"], "path": "/**", "priority": 100 },
+      "fetch": { "mode": "none" },
+      "fields": [
+        { "name": "externalId", "candidates": [{ "from": { "urlQuery": "place-id" } }] },
+        { "name": "title", "candidates": [
+          { "from": { "native": "maps.splitPlaceLabel@1" }, "select": "name" },
+          { "from": { "paste": "label" } }
+        ]},
+        { "name": "urlLocality", "candidates": [{ "from": { "native": "maps.splitPlaceLabel@1" }, "select": "locality" }] },
+        { "name": "pinLat", "candidates": [
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "lat" },
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportLat" }
+        ]},
+        { "name": "pinLng", "candidates": [
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "lng" },
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportLng" }
+        ]},
+        { "name": "locality", "candidates": [
+          { "from": { "field": "urlLocality" } },
+          { "from": { "native": "place.mapKitLookup@2", "input": {
+              "name": "$field.title", "locality": "$field.urlLocality?",
+              "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+            } }, "select": "locality" }
+        ]},
+        { "name": "address", "candidates": [{ "from": { "native": "place.mapKitLookup@2", "input": {
+            "name": "$field.title", "locality": "$field.urlLocality?",
+            "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+          } }, "select": "address" }] },
+        { "name": "phone", "candidates": [{ "from": { "native": "place.mapKitLookup@2", "input": {
+            "name": "$field.title", "locality": "$field.urlLocality?",
+            "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+          } }, "select": "phone" }] },
+        { "name": "poiCategory", "candidates": [{ "from": { "native": "place.mapKitLookup@2", "input": {
+            "name": "$field.title", "locality": "$field.urlLocality?",
+            "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+          } }, "select": "category" }] },
+        { "name": "geo", "candidates": [
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" },
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportGeo" },
+          { "from": { "native": "place.mapKitLookup@2", "input": {
+              "name": "$field.title", "locality": "$field.urlLocality?",
+              "urlLat": "$field.pinLat?", "urlLng": "$field.pinLng?", "viewportLat": "$field.viewportLat?", "viewportLng": "$field.viewportLng?"
+            } }, "select": "geo" }
+        ]}
+      ],
+      "label": ["title"],
+      "identities": [{ "ns": "applemaps.place", "from": { "urlQuery": "place-id" } }],
+      "requires": ["native:maps.pinCoordinate@1", "native:maps.splitPlaceLabel@1", "native:place.mapKitLookup@2"],
+      "examples": [
+        { "input": "https://maps.apple.com/?q=Tokyo+Tower&ll=35.6586,139.7454", "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } },
+        { "input": "https://maps.apple.com/?q=Golden+Gate+Bridge&sll=37.8199,-122.4783", "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } }
+      ]
+    },
+    {
+      "id": "applemaps.applink",
+      "title": "Apple Maps",
+      "kind": "place",
+      "match": { "scheme": ["maps"], "priority": 100 },
+      "fetch": { "mode": "none" },
+      "fields": [
+        { "name": "title", "candidates": [
+          { "from": { "native": "maps.splitPlaceLabel@1" }, "select": "name" },
+          { "from": { "paste": "label" } }
+        ]},
+        { "name": "locality", "candidates": [{ "from": { "native": "maps.splitPlaceLabel@1" }, "select": "locality" }] },
+        { "name": "geo", "candidates": [
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "geo" },
+          { "from": { "native": "maps.pinCoordinate@1" }, "select": "viewportGeo" }
+        ]}
+      ],
+      "label": ["title"],
+      "requires": ["native:maps.pinCoordinate@1", "native:maps.splitPlaceLabel@1"],
+      "examples": [
+        { "input": "maps://?q=Tokyo+Tower&ll=35.6586,139.7454", "expect": { "kind": "place", "nonEmpty": ["title", "geo"] } },
+        { "input": "maps://?q=Golden+Gate+Bridge", "expect": { "kind": "place", "nonEmpty": ["title"] } }
       ]
     }
 """
@@ -264,26 +476,32 @@ let starterTrailsAndFlightsJSON = """
       "id": "alltrails.trail",
       "title": "AllTrails",
       "kind": "trail",
-      "match": { "host": ["alltrails.com"], "path": "/trail/:country/:region/:slug", "priority": 100 },
-      "canonicalize": { "strip": ["utm_*", "sh", "ref"] },
+      "match": { "host": ["alltrails.com"], "path": ["/trail/:country/:region/:slug", "/**"], "priority": 100 },
+      "canonicalize": { "strip": ["*"] },
       "use": ["trailStats", "ogCore"],
       "fetch": { "mode": "composite", "steps": [
         { "mode": "http", "ua": "crawler" },
-        { "mode": "dom", "ua": "desktopSafari", "settle": { "signals": ["h1", "jsonld", "og:title"] }, "when": "blockedOrThin"}
+        { "mode": "dom", "ua": "desktopSafari", "settle": { "signals": ["h1", "jsonld", "og:title"] }, "regions": ["h1", "header", "body"], "when": "trailThin" }
       ]},
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlParam": "slug" } }] },
         { "name": "title", "candidates": [
           { "from": { "jsonld": "TouristAttraction.name" } },
-          { "from": { "meta": "og:title" }, "pipe": [{ "stripSuffix": " | AllTrails" }] },
+          { "from": { "meta": "og:title" }, "pipe": [{ "regexReplace": ["^(.*?)(?: [|] | - ).*$", "$1"] }, "trim"] },
+          { "from": { "paste": "label" } },
           { "from": { "urlParam": "slug" }, "pipe": ["slugToTitle"] }
         ]},
-        { "name": "rating", "candidates": [{ "from": { "jsonld": "TouristAttraction.aggregateRating.ratingValue" }, "as": "rating" }] }
+        { "name": "rating", "candidates": [{ "from": { "jsonld": "TouristAttraction.aggregateRating.ratingValue" }, "as": "rating" }] },
+        { "name": "locality", "candidates": [
+          { "from": { "native": "trail.locality@1", "input": { "region": "$param.region", "country": "$param.country" } }, "select": "locality" }
+        ]},
+        { "name": "geo", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "geo" }] }
       ],
+      "label": ["title"],
       "identities": [{ "ns": "alltrails.trail", "from": { "urlParam": "slug" } }],
-      "requires": ["native:trail.statsFromText@2"],
+      "requires": ["native:trail.statsFromText@3", "native:trail.locality@1", "native:jsonld.bestPlaceNode@1"],
       "examples": [
-        { "input": "https://www.alltrails.com/trail/us/california/half-dome-via-the-john-muir-trail-jmt", "expect": { "kind": "trail", "nonEmpty": ["title"] } },
+        { "input": "https://www.alltrails.com/trail/us/california/half-dome-via-the-john-muir-trail-jmt", "expect": { "kind": "trail", "nonEmpty": ["title", "locality"] } },
         { "input": "https://www.alltrails.com/trail/us/california/la-jolla-beach-trail?p=-1&utm_medium=trail_share&utm_source=alltrails_virality",
           "expect": { "kind": "trail", "nonEmpty": ["title"] } },
         { "input": "https://www.alltrails.com/trail/portugal/lisboa--6/praia-da-ursa-cabo-da-roca?p=-1&u=i&utm_medium=trail_share&utm_source=alltrails_virality",
@@ -299,19 +517,21 @@ let starterTrailsAndFlightsJSON = """
       "use": ["trailStats"],
       "fetch": { "mode": "composite", "steps": [
         { "mode": "http", "ua": "crawler" },
-        { "mode": "dom", "ua": "desktopSafari", "settle": { "signals": ["h1", "og:title"] }, "when": "blockedOrThin"}
+        { "mode": "dom", "ua": "desktopSafari", "settle": { "signals": ["h1", "og:title"] }, "regions": ["h1", "header", "body"], "when": "trailThin" }
       ]},
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "/tour/([0-9]+)" } }] },
         { "name": "title", "candidates": [
           { "from": { "meta": "og:title" }, "pipe": [{ "stripSuffix": " | Komoot" }] },
-          { "from": { "jsonld": "*.name" } }
+          { "from": { "jsonld": "*.name" } },
+          { "from": { "paste": "label" } }
         ]},
         { "name": "summary", "candidates": [{ "from": { "meta": "og:description" } }] },
         { "name": "image", "candidates": [{ "from": { "meta": "og:image" }, "pipe": ["resolveURL"], "as": "image" }] }
       ],
+      "label": ["title"],
       "identities": [{ "ns": "komoot.tour", "from": { "urlRegex": "/tour/([0-9]+)" } }],
-      "requires": ["native:trail.statsFromText@2"],
+      "requires": ["native:trail.statsFromText@3"],
       "examples": []
     },
     {
@@ -327,8 +547,7 @@ let starterTrailsAndFlightsJSON = """
           { "from": { "urlParam": "shareId" } }
         ]},
         { "name": "title", "candidates": [
-          { "from": { "meta": "og:title" } },
-          { "from": { "native": "flighty.flightFromPage@2" }, "select": "designator" }
+          { "from": { "meta": "og:title" }, "pipe": [{ "regexReplace": ["^Track +", ""] }, "trim"] }
         ]},
         { "name": "designator", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "designator" }] },
         { "name": "departureIata", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "departureIata" }] },
@@ -337,15 +556,58 @@ let starterTrailsAndFlightsJSON = """
         { "name": "arrivalAirport", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "arrivalAirport" }] },
         { "name": "departureTime", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "departureTime" }] },
         { "name": "arrivalTime", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "arrivalTime" }] },
+        { "name": "departureTimeZone", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "departureTimeZone" }] },
+        { "name": "arrivalTimeZone", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "arrivalTimeZone" }] },
         { "name": "gate", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "gate" }] },
         { "name": "terminal", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "terminal" }] },
         { "name": "airline", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "airlineName" }] },
         { "name": "arrivalGeo", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "arrivalGeo" }] },
-        { "name": "formatDrift", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "formatDrift" }] }
+        { "name": "formatDrift", "candidates": [{ "from": { "native": "flighty.flightFromPage@2" }, "select": "formatDrift" }] },
+        { "name": "routeLabel", "candidates": [
+          { "from": { "native": "text.join@1", "input": { "part1": "$field.designator", "part2": "$field.arrivalIata", "separator": " to " } }, "select": "text" }
+        ]},
+        { "name": "urlDesignator", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] }
       ],
-      "requires": ["native:flighty.flightFromPage@2"],
+      "label": ["title", "routeLabel", "urlDesignator"],
+      "requires": ["native:flighty.flightFromPage@2", "native:flight.designatorFromURL@1"],
       "examples": [
         { "input": "https://live.flighty.app/522c14cd-5c6e-4858-b201-b9c117d8477a", "expect": { "kind": "flight", "nonEmpty": ["title", "designator"] } }
+      ]
+    },
+    {
+      "id": "flighty.link",
+      "title": "Flighty",
+      "kind": "flight",
+      "match": { "host": ["flighty.app"], "path": ["/flight/**", "/share/**"], "priority": 100 },
+      "fetch": { "mode": "none" },
+      "fields": [
+        { "name": "externalId", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] },
+        { "name": "designator", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] },
+        { "name": "title", "candidates": [{ "from": { "field": "designator" } }] }
+      ],
+      "label": ["title"],
+      "requires": ["native:flight.designatorFromURL@1"],
+      "examples": [
+        { "input": "https://flighty.app/flight/AS1276", "expect": { "kind": "flight", "nonEmpty": ["designator"] } },
+        { "input": "https://flighty.app/flight/UA123", "expect": { "kind": "flight", "nonEmpty": ["designator"] } }
+      ]
+    },
+    {
+      "id": "flighty.applink",
+      "title": "Flighty",
+      "kind": "flight",
+      "match": { "scheme": ["flighty"], "priority": 100 },
+      "fetch": { "mode": "none" },
+      "fields": [
+        { "name": "externalId", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] },
+        { "name": "designator", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] },
+        { "name": "title", "candidates": [{ "from": { "field": "designator" } }] }
+      ],
+      "label": ["title"],
+      "requires": ["native:flight.designatorFromURL@1"],
+      "examples": [
+        { "input": "flighty://flight/UA123", "expect": { "kind": "flight", "nonEmpty": ["designator"] } },
+        { "input": "flighty://flight/AS866", "expect": { "kind": "flight", "nonEmpty": ["designator"] } }
       ]
     },
     {
@@ -357,12 +619,17 @@ let starterTrailsAndFlightsJSON = """
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] },
         { "name": "title", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] },
-        { "name": "designator", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] }
+        { "name": "designator", "candidates": [{ "from": { "native": "flight.designatorFromURL@1" }, "select": "designator" }] },
+        { "name": "brand", "candidates": [
+          { "from": { "urlRegex": "^https?://(?:[^/@?#]*@)?(?:[^/@?#.]*[.])*?flightaware[.]" }, "pipe": [{ "regexReplace": ["^.*$", "FlightAware"] }] },
+          { "from": { "urlRegex": "^https?://(?:[^/@?#]*@)?(?:[^/@?#.]*[.])*?(?:flightradar24|fr24)[.]" }, "pipe": [{ "regexReplace": ["^.*$", "Flightradar24"] }] }
+        ]}
       ],
+      "label": ["title"],
       "requires": ["native:flight.designatorFromURL@1"],
       "examples": [
-        { "input": "https://www.flightaware.com/live/flight/UAL123", "expect": { "kind": "flight", "nonEmpty": ["title"] } },
-        { "input": "https://www.flightradar24.com/data/flights/ua123", "expect": { "kind": "flight", "nonEmpty": ["title"] } },
+        { "input": "https://www.flightaware.com/live/flight/UAL123", "expect": { "kind": "flight", "nonEmpty": ["title", "brand"] } },
+        { "input": "https://www.flightradar24.com/data/flights/ua123", "expect": { "kind": "flight", "nonEmpty": ["title", "brand"] } },
         { "input": "https://fr24.com/UA123", "expect": { "kind": "flight", "nonEmpty": ["title"] } },
         { "input": "https://www.flightaware.com/live/flight/DAL2362", "expect": { "kind": "flight", "nonEmpty": ["title"] } },
         { "input": "https://www.flightradar24.com/data/flights/ba284", "expect": { "kind": "flight", "nonEmpty": ["title"] } }
@@ -375,14 +642,18 @@ let starterLodgingToursJSON = """
       "id": "booking.lodging",
       "title": "Booking.com",
       "kind": "lodging",
-      "match": { "host": ["booking.com"], "path": "/hotel/:country/:slug", "priority": 100 },
-      "use": ["lodgingDates"],
-      "fetch": { "mode": "none" },
+      "match": { "host": ["booking.com"], "path": ["/hotel/:country/:slug", "/**"], "priority": 100 },
+      "use": ["lodgingDates", "placePage", "placeNode"],
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlParam": "slug" }, "pipe": [{ "regexReplace": ["\\\\..*$", ""] }] }] },
-        { "name": "title", "candidates": [{ "from": { "urlParam": "slug" }, "pipe": [{ "regexReplace": ["\\\\..*$", ""] }, "slugToTitle"] }] },
+        { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
+          { "from": { "urlParam": "slug" }, "pipe": [{ "regexReplace": ["\\\\..*$", ""] }, "slugToTitle"] }
+        ]},
         { "name": "lodgingType", "candidates": [{ "from": { "const": "hotel" } }] }
       ],
+      "label": ["title"],
       "identities": [{ "ns": "booking.hotel", "from": { "urlRegex": "/hotel/[^/]+/([^/.?#]+)" } }],
       "examples": [
         { "input": "https://www.booking.com/hotel/jp/the-peninsula-tokyo.zh-cn.html", "expect": { "kind": "lodging", "nonEmpty": ["title"] } },
@@ -395,12 +666,13 @@ let starterLodgingToursJSON = """
       "title": "Airbnb",
       "kind": "lodging",
       "match": { "brand": ["airbnb"], "path": "/**", "priority": 100 },
-      "use": ["lodgingDates", "ogCore"],
-      "fetch": { "mode": "http", "ua": "desktopSafari" },
+      "use": ["lodgingDates", "placePage", "placeNode", "ogCore"],
       "fields": [
+        { "name": "title", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" }, { "from": { "paste": "label" } }] },
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "/(?:rooms|properties)/([0-9]+)" } }] },
         { "name": "lodgingType", "candidates": [{ "from": { "const": "rental" } }] }
       ],
+      "label": ["title"],
       "identities": [{ "ns": "airbnb.listing", "from": { "urlRegex": "/rooms/([0-9]+)" } }],
       "examples": [
         { "input": "https://www.airbnb.com/properties/1608222261053394311", "expect": { "kind": "lodging", "nonEmpty": ["lodgingType", "externalId", "title"] } },
@@ -415,15 +687,17 @@ let starterLodgingToursJSON = """
       "use": ["lodgingDates"],
       "fetch": { "mode": "none" },
       "fields": [
+        { "name": "title", "candidates": [{ "from": { "paste": "label" } }] },
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "/p?([0-9]{6,})" } }] },
         { "name": "lodgingType", "candidates": [{ "from": { "const": "rental" } }] }
       ],
+      "label": ["title"],
       "identities": [{ "ns": "vrbo.property", "from": { "urlRegex": "/p?([0-9]{6,})" } }],
       "examples": [
-        { "input": "https://www.vrbo.com/2716034", "expect": { "kind": "lodging", "nonEmpty": ["lodgingType"] } },
-        { "input": "https://www.vrbo.com/en-ca/p3081098vb", "expect": { "kind": "lodging" } },
-        { "input": "https://www.vrbo.com/8360330ha", "expect": { "kind": "lodging" } },
-        { "input": "https://www.vrbo.com/705146", "expect": { "kind": "lodging" } }
+        { "input": "https://www.vrbo.com/2716034", "expect": { "kind": "lodging", "nonEmpty": ["externalId"] } },
+        { "input": "https://www.vrbo.com/en-ca/p3081098vb", "expect": { "kind": "lodging", "nonEmpty": ["externalId"] } },
+        { "input": "https://www.vrbo.com/8360330ha", "expect": { "kind": "lodging", "nonEmpty": ["externalId"] } },
+        { "input": "https://www.vrbo.com/705146", "expect": { "kind": "lodging", "nonEmpty": ["externalId"] } }
       ]
     },
     {
@@ -431,14 +705,16 @@ let starterLodgingToursJSON = """
       "title": "Agoda",
       "kind": "lodging",
       "match": { "brand": ["agoda"], "path": "/**", "priority": 100 },
-      "use": ["lodgingDates"],
-      "fetch": { "mode": "none" },
+      "use": ["lodgingDates", "placePage", "placeNode"],
       "fields": [
         { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
           { "from": { "urlRegex": "^[^?#]*/((?![a-z]{2}(?:-[a-z]{2})?/)[^/?#]+)/hotel(?:/|$)" }, "pipe": ["slugToTitle"] }
         ]},
         { "name": "lodgingType", "candidates": [{ "from": { "const": "hotel" } }] }
       ],
+      "label": ["title"],
       "examples": [
         { "input": "https://www.agoda.com/hotel-zephyr/hotel/san-francisco-ca-us.html", "expect": { "kind": "lodging", "nonEmpty": ["title"] } },
         { "input": "https://www.agoda.com/the-okura-tokyo/hotel/tokyo-jp.html?checkIn=2026-09-12&los=2",
@@ -450,15 +726,17 @@ let starterLodgingToursJSON = """
       "title": "Expedia",
       "kind": "lodging",
       "match": { "brand": ["expedia"], "path": "/**", "priority": 100 },
-      "use": ["lodgingDates"],
-      "fetch": { "mode": "none" },
+      "use": ["lodgingDates", "placePage", "placeNode"],
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "^[^?#]*\\\\.h([0-9]+)" } }] },
         { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
           { "from": { "urlRegex": "^[^?#]*/(?:[^/?#]*-[Hh]otels-)?([^/?#.]+)\\\\.h[0-9]+" }, "pipe": ["slugToTitle"] }
         ]},
         { "name": "lodgingType", "candidates": [{ "from": { "const": "hotel" } }] }
       ],
+      "label": ["title"],
       "identities": [{ "ns": "expedia.hotel", "from": { "urlRegex": "^[^?#]*\\\\.h([0-9]+)" } }],
       "examples": [
         { "input": "https://www.expedia.com/Jackson-Hole-Hotels-Cowboy-Village-Resort.h894154.Hotel-Information",
@@ -471,9 +749,9 @@ let starterLodgingToursJSON = """
       "title": "Hostelworld",
       "kind": "lodging",
       "match": { "brand": ["hostelworld"], "path": "/**", "priority": 100 },
-      "use": ["lodgingDates", "ogCore"],
-      "fetch": { "mode": "http", "ua": "desktopSafari" },
+      "use": ["lodgingDates", "placePage", "placeNode", "ogCore"],
       "fields": [
+        { "name": "title", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" }, { "from": { "paste": "label" } }] },
         { "name": "externalId", "candidates": [
           { "from": { "urlRegex": "/hostels/p/([0-9]+)/" } },
           { "from": { "urlRegex": "/hosteldetails\\\\.php/[^/]+/[^/]+/([0-9]+)" } }
@@ -482,6 +760,7 @@ let starterLodgingToursJSON = """
         { "name": "checkOut", "candidates": [{ "from": { "urlQuery": "to" }, "as": "date", "format": "yyyy-MM-dd" }] },
         { "name": "lodgingType", "candidates": [{ "from": { "const": "hostel" } }] }
       ],
+      "label": ["title"],
       "identities": [
         { "ns": "hostelworld.property", "from": { "urlRegex": "/hostels/p/([0-9]+)/" } },
         { "ns": "hostelworld.property", "from": { "urlRegex": "/hosteldetails\\\\.php/[^/]+/[^/]+/([0-9]+)" } }
@@ -501,13 +780,17 @@ let starterLodgingToursJSON = """
       "title": "Hotels.com",
       "kind": "lodging",
       "match": { "host": ["hotels.com"], "path": "/**", "priority": 100 },
-      "use": ["lodgingDates"],
-      "fetch": { "mode": "none" },
+      "use": ["lodgingDates", "placePage", "placeNode"],
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "^[^?#]*/ho([0-9]+)(?:[/?#]|$)" } }] },
-        { "name": "title", "candidates": [{ "from": { "urlRegex": "^[^?#]*/ho[0-9]+/([^/?#]+)(?:[/?#]|$)" }, "pipe": ["slugToTitle"] }] },
+        { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
+          { "from": { "urlRegex": "^[^?#]*/ho[0-9]+/([^/?#]+)(?:[/?#]|$)" }, "pipe": ["slugToTitle"] }
+        ]},
         { "name": "lodgingType", "candidates": [{ "from": { "const": "hotel" } }] }
       ],
+      "label": ["title"],
       "identities": [{ "ns": "hotels.hotel", "from": { "urlRegex": "^[^?#]*/ho([0-9]+)(?:[/?#]|$)" } }],
       "examples": [
         { "input": "https://www.hotels.com/ho276485/hotel-zephyr-san-francisco-san-francisco-united-states-of-america/",
@@ -520,14 +803,17 @@ let starterLodgingToursJSON = """
       "id": "tripadvisor.review",
       "title": "Tripadvisor",
       "match": { "host": ["tripadvisor.com"], "path": "/**", "priority": 100 },
-      "fetch": { "mode": "none" },
+      "use": ["placePage", "placeNode"],
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "^[^?#]*_Review-g[0-9]+-d([0-9]+)" } }] },
         { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
           { "from": { "urlRegex": "^[^?#]*_Review-[^?#]*-Reviews-(?:or[0-9]+-)*([^-./?#]+)" }, "pipe": ["slugToTitle"] }
         ]},
         { "name": "category", "candidates": [{ "from": { "urlRegex": "^[^?#]*/([A-Za-z]+)_Review-" }, "pipe": ["lower"] }] }
       ],
+      "label": ["title"],
       "identities": [{ "ns": "tripadvisor.location", "from": { "urlRegex": "^[^?#]*_Review-g[0-9]+-d([0-9]+)" } }],
       "inference": {
         "categoryKeyword": { "hotel": "lodging", "restaurant": "food" },
@@ -541,20 +827,24 @@ let starterLodgingToursJSON = """
         { "input": "https://www.tripadvisor.com/Hotel_Review-g60713-d224953-Reviews-Hotel_Zephyr_San_Francisco-San_Francisco_California.html",
           "expect": { "kind": "lodging", "nonEmpty": ["title"] } },
         { "input": "https://www.tripadvisor.com/Restaurant_Review-g60713-d3539600-Reviews-Gary_Danko-San_Francisco.html",
-          "expect": { "kind": "food", "nonEmpty": ["title"] } },
-        { "input": "https://www.tripadvisor.com/Tourism-g60763-New_York_City-Vacations.html", "expect": { "kind": "attraction" } }
+          "expect": { "kind": "food", "nonEmpty": ["title"] } }
       ]
     },
     {
       "id": "yelp.review",
       "title": "Yelp",
       "kind": "food",
-      "match": { "host": ["yelp.com"], "path": "/biz/:slug", "priority": 100 },
-      "fetch": { "mode": "none" },
+      "match": { "host": ["yelp.com"], "path": ["/biz/:slug", "/**"], "priority": 100 },
+      "use": ["placePage", "placeNode"],
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlParam": "slug" } }] },
-        { "name": "title", "candidates": [{ "from": { "urlParam": "slug" }, "pipe": [{ "regexReplace": ["-[0-9]+$", ""] }, "slugToTitle"] }] }
+        { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
+          { "from": { "urlParam": "slug" }, "pipe": [{ "regexReplace": ["-[0-9]+$", ""] }, "slugToTitle"] }
+        ]}
       ],
+      "label": ["title"],
       "identities": [{ "ns": "yelp.business", "from": { "urlParam": "slug" } }],
       "examples": [
         { "input": "https://www.yelp.com/biz/gary-danko-san-francisco", "expect": { "kind": "food", "nonEmpty": ["title"] } },
@@ -569,19 +859,23 @@ let starterLodgingToursJSON = """
       "title": "GetYourGuide",
       "kind": "activity",
       "match": { "host": ["getyourguide.com"], "path": "/**", "priority": 100 },
-      "fetch": { "mode": "none" },
+      "use": ["placePage", "placeNode"],
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "^[^?#]*-t([0-9]+)(?:[/?#]|$)" } }] },
-        { "name": "title", "candidates": [{ "from": { "urlRegex": "^[^?#]*/([^/?#]+)-t[0-9]+(?:[/?#]|$)" }, "pipe": ["slugToTitle"] }] }
+        { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
+          { "from": { "urlRegex": "^[^?#]*/([^/?#]+)-t[0-9]+(?:[/?#]|$)" }, "pipe": ["slugToTitle"] }
+        ]}
       ],
+      "label": ["title"],
       "identities": [{ "ns": "gyg.tour", "from": { "urlRegex": "^[^?#]*-t([0-9]+)(?:[/?#]|$)" } }],
       "examples": [
-        { "input": "https://www.getyourguide.com/paris-l16/eiffel-tower-summit-tour-t435659/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
-        { "input": "https://www.getyourguide.com/rome-l33/colosseum-priority-access-t54476/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
-        { "input": "https://www.getyourguide.com/kyoto-l96826/kyoto-full-day-tour-t394456/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
-        { "input": "https://www.getyourguide.com/new-york-l59/statue-of-liberty-ellis-island-tour-t130725/",
-          "expect": { "kind": "activity", "nonEmpty": ["title"] } },
-        { "input": "https://www.getyourguide.com/barcelona-l45/", "expect": { "kind": "activity" } }
+        { "input": "https://www.getyourguide.com/paris-l16/paris-guided-tour-eiffel-tower-ticket-t29942/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
+        { "input": "https://www.getyourguide.com/rome-l33/rome-colosseum-roman-forum-and-palatine-hill-guided-tour-t84141/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
+        { "input": "https://www.getyourguide.com/kyoto-l96826/kyoto-full-day-unesco-and-historical-sites-tour-t137921/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
+        { "input": "https://www.getyourguide.com/new-york-l59/statue-of-liberty-and-ellis-island-4-hour-guided-tour-t53542/",
+          "expect": { "kind": "activity", "nonEmpty": ["title"] } }
       ]
     },
     {
@@ -589,18 +883,23 @@ let starterLodgingToursJSON = """
       "title": "Viator",
       "kind": "activity",
       "match": { "host": ["viator.com"], "path": "/**", "priority": 100 },
-      "fetch": { "mode": "none" },
+      "use": ["placePage", "placeNode"],
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "^[^?#]*/d([0-9]+-[A-Za-z0-9]+)(?:[/?#]|$)" } }] },
-        { "name": "title", "candidates": [{ "from": { "urlRegex": "^[^?#]*/tours/[^/?#]+/((?!d[0-9])[^/?#]+)" }, "pipe": ["slugToTitle"] }] }
+        { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
+          { "from": { "urlRegex": "^[^?#]*/tours/[^/?#]+/((?!d[0-9])[^/?#]+)" }, "pipe": ["slugToTitle"] }
+        ]}
       ],
+      "label": ["title"],
       "identities": [{ "ns": "viator.product", "from": { "urlRegex": "^[^?#]*/d([0-9]+-[A-Za-z0-9]+)(?:[/?#]|$)" } }],
       "examples": [
-        { "input": "https://www.viator.com/tours/Paris/Eiffel-Tower-Priority-Access/d479-3731EIFFEL", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
-        { "input": "https://www.viator.com/en-GB/tours/Rome/Colosseum-Tour/d511-1234ROME", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
-        { "input": "https://www.viator.com/tours/San-Francisco/Alcatraz-Tour/d651-2982ALCATRAZ", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
-        { "input": "https://www.viator.com/tours/Tokyo/Mount-Fuji-Day-Trip/d334-3050FUJI", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
-        { "input": "https://www.viator.com/tours/Paris", "expect": { "kind": "activity" } }
+        { "input": "https://www.viator.com/tours/Paris/Summit-Eiffel-Tower-Priority-Access-with-Host/d479-7845P10", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
+        { "input": "https://www.viator.com/en-GB/tours/Rome/Colosseum-and-Ancient-Rome-Tour-with-Roman-Forum-and-Palatine-Hill/d511-3731COLOSSEUM",
+          "expect": { "kind": "activity", "nonEmpty": ["title"] } },
+        { "input": "https://www.viator.com/tours/San-Francisco/Alcatraz-and-San-Francisco-City-Tour/d651-2660SFODLX3", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
+        { "input": "https://www.viator.com/tours/Tokyo/Mount-Fuji-Full-day-Tour-from-Tokyo-with-English-Speaking-Guide/d334-444978P1", "expect": { "kind": "activity", "nonEmpty": ["title"] } }
       ]
     },
     {
@@ -608,11 +907,16 @@ let starterLodgingToursJSON = """
       "title": "Klook",
       "kind": "activity",
       "match": { "host": ["klook.com"], "path": "/**", "priority": 100 },
-      "fetch": { "mode": "none" },
+      "use": ["placePage", "placeNode"],
       "fields": [
         { "name": "externalId", "candidates": [{ "from": { "urlRegex": "^[^?#]*/activity/([0-9]+)-" } }] },
-        { "name": "title", "candidates": [{ "from": { "urlRegex": "^[^?#]*/activity/(?:[0-9]+-)?([^/?#]+)" }, "pipe": ["slugToTitle"] }] }
+        { "name": "title", "candidates": [
+          { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
+          { "from": { "paste": "label" } },
+          { "from": { "urlRegex": "^[^?#]*/activity/(?:[0-9]+-)?([^/?#]+)" }, "pipe": ["slugToTitle"] }
+        ]}
       ],
+      "label": ["title"],
       "identities": [{ "ns": "klook.activity", "from": { "urlRegex": "^[^?#]*/activity/([0-9]+)-" } }],
       "examples": [
         { "input": "https://www.klook.com/activity/2680-klook-pass-bangkok/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
@@ -620,6 +924,27 @@ let starterLodgingToursJSON = """
         { "input": "https://www.klook.com/activity/113-ngong-ping-360-cable-car-hong-kong/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
         { "input": "https://www.klook.com/activity/1734-tokyo-disneyland-ticket/", "expect": { "kind": "activity", "nonEmpty": ["title"] } },
         { "input": "https://www.klook.com/zh-CN/activity/2115-taipei-101-observatory/", "expect": { "kind": "activity", "nonEmpty": ["title"] } }
+      ]
+    },
+    {
+      "id": "dining.reservations",
+      "title": "Restaurant reservations",
+      "kind": "food",
+      "match": { "brand": ["opentable", "thefork", "tabelog"], "host": ["resy.com"], "path": "/**", "priority": 100 },
+      "use": ["placePage", "placeNode", "ogCore"],
+      "fields": [
+        { "name": "title", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" }, { "from": { "paste": "label" } }] },
+        { "name": "brand", "candidates": [
+          { "from": { "urlRegex": "^https?://(?:[^/@?#]*@)?(?:[^/@?#.]*[.])*?opentable[.]" }, "pipe": [{ "regexReplace": ["^.*$", "OpenTable"] }] },
+          { "from": { "urlRegex": "^https?://(?:[^/@?#]*@)?(?:[^/@?#.]*[.])*?thefork[.]" }, "pipe": [{ "regexReplace": ["^.*$", "TheFork"] }] },
+          { "from": { "urlRegex": "^https?://(?:[^/@?#]*@)?(?:[^/@?#.]*[.])*?tabelog[.]" }, "pipe": [{ "regexReplace": ["^.*$", "Tabelog"] }] },
+          { "from": { "urlRegex": "^https?://(?:[^/@?#]*@)?(?:[^/@?#.]*[.])*?resy[.]com" }, "pipe": [{ "regexReplace": ["^.*$", "Resy"] }] }
+        ]}
+      ],
+      "label": ["title"],
+      "examples": [
+        { "input": "https://www.opentable.com/r/benu-san-francisco", "expect": { "kind": "food", "nonEmpty": ["title", "brand"] } },
+        { "input": "https://tabelog.com/en/tokyo/A1301/A130101/13002251/", "expect": { "kind": "food", "nonEmpty": ["title", "brand"] } }
       ]
     },
     {
@@ -643,6 +968,7 @@ let starterLodgingToursJSON = """
             "pipe": ["lower", "capitalizeFirst"] }
         ]}
       ],
+      "label": ["title"],
       "examples": [
         { "input": "https://www.hertz.com/rentacar/reservation/", "expect": { "kind": "transport", "nonEmpty": ["title"] } },
         { "input": "https://www.avis.com/en/locations/us/ca/los-angeles", "expect": { "kind": "transport", "nonEmpty": ["title"] } },

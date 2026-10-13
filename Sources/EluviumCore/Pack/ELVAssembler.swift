@@ -17,7 +17,8 @@ public enum ELVAssembler {
     /// scoped is more specific than the source level evaluated against the
     /// final context).
     public static func assemble(source: ELVSource, context: ELVExtractionContext, preExtracted: ELVExtractor.FieldResult? = nil, extraCollections: [String: [ELVRecord]] = [:]) -> ELVRecord {
-        let result = preExtracted ?? ELVExtractor.extract(fields: source.fields, context: context)
+        var result = preExtracted ?? ELVExtractor.extract(fields: source.fields, context: context)
+        applyLabel(source: source, paste: context.paste, to: &result)
         var context = context
         context.fields = result.values
 
@@ -166,6 +167,21 @@ public enum ELVAssembler {
     }
 
     // MARK: - Helpers
+
+    /// The label ladder: writes the winner to `label` (provenance
+    /// `label:<origin>`). The brand is the record's own `brand` field when a
+    /// multi-brand source extracts one, else the source title.
+    private static func applyLabel(source: ELVSource, paste: ELVPasteContext?, to result: inout ELVExtractor.FieldResult) {
+        guard !source.label.isEmpty else { return }
+        let brand = result.values["brand"].flatMap { ELVSelectorEngine.stringForm(of: $0)?.singleString } ?? source.title
+        let ladder = source.label.compactMap { name -> (field: String, value: String)? in
+            guard let value = result.values[name], let text = ELVSelectorEngine.stringForm(of: value)?.singleString else { return nil }
+            return (name, text)
+        }
+        guard let resolution = ELVLabelResolver.resolve(userLabel: paste?.userLabel, ladder: ladder, brand: brand) else { return }
+        result.values["label"] = .text(resolution.value)
+        result.provenance["label"] = ELVProvenance(origin: "label:\(resolution.origin)")
+    }
 
     /// The one record constructor behind every entry point: enriches the
     /// context with the field result, promotes `externalId` (falling back to

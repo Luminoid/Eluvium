@@ -41,7 +41,8 @@ public struct ELVStepTrace: Sendable, Equatable {
     /// `none`, `http`, `json`, `feed`, `dom`, or `native` for a redirector's
     /// chase.
     public var mode: String
-    /// The host the step requested.
+    /// The host the step requested; for an app link, its scheme
+    /// (`flighty:`).
     public var host: String?
     /// The HTTP status, when the transport reported one.
     public var status: Int?
@@ -110,7 +111,8 @@ public struct ELVStepTrace: Sendable, Equatable {
 /// rendered from it, so a test asserting on the trace asserts on what the
 /// log will say.
 public struct ELVRunTrace: Sendable, Equatable {
-    /// The input's host (the seed's, for `runSeed`).
+    /// The input's host (the seed's, for `runSeed`); for an app link, its
+    /// scheme (`flighty:`), since its "host" is a path word or absent.
     public var inputHost: String?
     /// Every source that ran, in order. A redirector chase or a canonical
     /// capture re-enters recognition, so one run can visit two sources;

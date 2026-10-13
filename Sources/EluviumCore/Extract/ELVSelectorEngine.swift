@@ -36,6 +36,8 @@ enum ELVSelectorEngine {
         case let .field(name):
             guard let value = context.fields[name] else { return nil }
             return stringForm(of: value)
+        case let .paste(key):
+            return context.paste?.value(key).map { .string($0) }
         case .regexRows:
             // A collection driver, not a value selector: a single candidate
             // has no row to bind, so it simply doesn't produce.
@@ -49,7 +51,7 @@ enum ELVSelectorEngine {
         }
     }
 
-    /// Rendered text when a DOM pass (or a pasted blurb) produced it;
+    /// Rendered text when a DOM pass produced it;
     /// otherwise the raw fetched HTML, so markup-shaped candidates (Amazon's
     /// title span, image-gallery JSON) work over plain http. Bounded once
     /// per document (`ELVDocument.regexText`); an `after` anchor moves the
