@@ -19,8 +19,15 @@ public struct ELVGeocodedPlace: Sendable, Equatable {
     /// The region above the locality (state, prefecture, or the country
     /// when there is none), for `localitySubtitle`.
     public var region: String?
+    /// The county-level area (the placemark's `subAdministrativeArea`):
+    /// `localitySubtitle`'s stand-in for a place outside any city (a lake,
+    /// a trailhead), so it reads "Teton County, WY" rather than "WY".
+    public var county: String?
 
-    public init(name: String, latitude: Double, longitude: Double, address: String? = nil, locality: String? = nil, phone: String? = nil, category: String? = nil, region: String? = nil) {
+    public init(
+        name: String, latitude: Double, longitude: Double, address: String? = nil, locality: String? = nil,
+        phone: String? = nil, category: String? = nil, region: String? = nil, county: String? = nil
+    ) {
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
@@ -29,11 +36,15 @@ public struct ELVGeocodedPlace: Sendable, Equatable {
         self.phone = phone
         self.category = category
         self.region = region
+        self.county = county
     }
 
-    /// "City, Region" ("Moose, WY"), or whichever half exists.
+    /// "City, Region" ("Moose, WY"), the county standing in for a missing
+    /// city ("Teton County, WY"), or whichever half exists.
     public var localitySubtitle: String? {
-        let city = locality?.trimmingCharacters(in: .whitespaces)
+        let city = [locality, county]
+            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .first { !$0.isEmpty }
         let area = region?.trimmingCharacters(in: .whitespaces)
         let parts = [city, area == city ? nil : area].compactMap { $0?.isEmpty == false ? $0 : nil }
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
@@ -172,7 +183,8 @@ public struct ELVMapKitPlaceSearch: ELVPlaceSearching {
                 locality: item.placemark.locality,
                 phone: item.phoneNumber,
                 category: item.pointOfInterestCategory?.rawValue,
-                region: item.placemark.administrativeArea ?? item.placemark.country
+                region: item.placemark.administrativeArea ?? item.placemark.country,
+                county: item.placemark.subAdministrativeArea
             )
         }
     }

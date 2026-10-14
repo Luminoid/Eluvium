@@ -67,8 +67,10 @@ Sources with a `label` ladder put one display label on each record, page-derived
 The catalog is separate from the engine, so an app compiles in only the sources it needs. Curate a subset at build time with the `eluvium` tool:
 
 ```bash
-swift run eluvium curate --families travel,floors --enum-name TripDaysSources -o TripDaysSources.swift
-# or by id; --format json emits a bundle resource instead of a Swift file
+# TripDays' pack: the travel family plus three sources from other families
+swift run eluvium curate --families travel --ids generic.opengraph,xiaohongshu.post,shortlinks.media \
+  --enum-name TripDaysSources -o TripDaysSources.swift
+# or by id alone; --format json emits a bundle resource instead of a Swift file
 swift run eluvium curate --ids alltrails.trail,booking.lodging,generic.opengraph -o AppSources.swift
 ```
 

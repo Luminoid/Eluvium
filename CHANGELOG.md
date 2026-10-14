@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A source whose later steps need a fetch mode the binary lacks now loads and degrades: only its first step and its unconditional steps gate it (`ELVFetchPlan.gatingModes`), so a binary without EluviumDOM keeps a source's http rung instead of losing the source.
 - A generic floor's dom step now runs (when a renderer is injected and its `when` admits the shared fetch's outcome), so a refused or title-less page can still render.
+- `ELVGeocodedPlace.localitySubtitle` falls back to the new `county` (the placemark's sub-administrative area) when a place has no city, so a lake reads "Teton County, WY" instead of "WY".
 - Travel sources: Google Maps sources match every Google ccTLD and read the place page's metas in their own step; lodging, tour, and review sources (Vrbo excepted, which stays URL-only) fetch their page and read its place node, so a page's name replaces the URL slug in their label; Flighty titles drop the og:title's "Track " lead and records carry both airport time zones; Booking `/Share-` links expand instead of falling to the OpenGraph floor.
 
 ### Fixed
@@ -30,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `maps.classifyMetaSegments` no longer reports a bare "Google Maps" page title as the place's name.
 - Starter sources no longer take a bot wall's page title ("Access Denied", "Just a moment...") as the record's title.
 - Lens titles drop the site suffix after " | " ("FUJINON XF8-16mmF2.8 R LM WR", not "… | Lenses | FUJIFILM X Series & GFX - USA").
-- The GetYourGuide and Viator examples point at live tours; several were placeholders that never loaded.
+- AllTrails records carry the trail's address and public rating: AllTrails types its trail as a generic business, which the source's own rating rule missed, and nothing read the address.
+- The GetYourGuide, Viator, and Tripadvisor examples point at live pages: several tours were placeholders that never loaded, and the Tripadvisor ones paired one place's id with another's name.
 
 ## [0.1.0] - 2026-10-12
 

@@ -133,6 +133,15 @@ struct ELVAddressAnchorLookupTests {
     }
 
     @Test
+    func `a place outside any city names its county in the locality subtitle`() {
+        let lake = ELVGeocodedPlace(name: "Jenny Lake", latitude: 43.7520, longitude: -110.7270, region: "WY", county: "Teton County")
+        #expect(lake.localitySubtitle == "Teton County, WY")
+        // A city still wins over its county.
+        let town = ELVGeocodedPlace(name: "Dornans", latitude: 43.66, longitude: -110.71, locality: "Moose", region: "WY", county: "Teton County")
+        #expect(town.localitySubtitle == "Moose, WY")
+    }
+
+    @Test
     func `a viewport match fills metadata but never the pin`() async throws {
         let viewport = Point(latitude: 43.75, longitude: -110.72)
         let lake = ELVGeocodedPlace(name: "Jenny Lake", latitude: 43.7520, longitude: -110.7270, category: "MKPOICategoryNationalPark")

@@ -88,7 +88,9 @@
 /// URL then carries), so mixing the two would merge unrelated listings.
 /// Expedia matches by `brand` like the other lodging marketplaces instead
 /// of four hand-listed TLDs. AllTrails rides `ogCore` for its summary and
-/// image; its title ladder stays inline (the og:title strip and the slug
+/// image and `placeNode` for its pin, address, and rating (it types its
+/// trails `LocalBusiness`, so its own `TouristAttraction` rating rung
+/// misses); its title ladder stays inline (the og:title strip and the slug
 /// fallback, after which the fragment's raw og:title is inert). Komoot
 /// stays off `ogCore` entirely: the fragment would append `twitter:title`
 /// and `<title>` after the JSON-LD name, and a shell page's generic
@@ -478,7 +480,7 @@ let starterTrailsAndFlightsJSON = """
       "kind": "trail",
       "match": { "host": ["alltrails.com"], "path": ["/trail/:country/:region/:slug", "/**"], "priority": 100 },
       "canonicalize": { "strip": ["*"] },
-      "use": ["trailStats", "ogCore"],
+      "use": ["trailStats", "ogCore", "placeNode"],
       "fetch": { "mode": "composite", "steps": [
         { "mode": "http", "ua": "crawler" },
         { "mode": "dom", "ua": "desktopSafari", "settle": { "signals": ["h1", "jsonld", "og:title"] }, "regions": ["h1", "header", "body"], "when": "trailThin" }
@@ -494,8 +496,7 @@ let starterTrailsAndFlightsJSON = """
         { "name": "rating", "candidates": [{ "from": { "jsonld": "TouristAttraction.aggregateRating.ratingValue" }, "as": "rating" }] },
         { "name": "locality", "candidates": [
           { "from": { "native": "trail.locality@1", "input": { "region": "$param.region", "country": "$param.country" } }, "select": "locality" }
-        ]},
-        { "name": "geo", "candidates": [{ "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "geo" }] }
+        ]}
       ],
       "label": ["title"],
       "identities": [{ "ns": "alltrails.trail", "from": { "urlParam": "slug" } }],
@@ -820,13 +821,13 @@ let starterLodgingToursJSON = """
         "hostBrand": { "tripadvisor": "attraction" }
       },
       "examples": [
-        { "input": "https://www.tripadvisor.com/Attraction_Review-g60763-d104365-Reviews-Central_Park-New_York_City_New_York.html",
+        { "input": "https://www.tripadvisor.com/Attraction_Review-g60763-d104365-Reviews-Empire_State_Building-New_York_City_New_York.html",
           "expect": { "kind": "attraction", "nonEmpty": ["title"] } },
-        { "input": "https://www.tripadvisor.com/Attraction_Review-g60763-d104365-Reviews-or15-Central_Park-New_York_City_New_York.html",
+        { "input": "https://www.tripadvisor.com/Attraction_Review-g60763-d104365-Reviews-or10-Empire_State_Building-New_York_City_New_York.html",
           "expect": { "kind": "attraction", "nonEmpty": ["title"] } },
-        { "input": "https://www.tripadvisor.com/Hotel_Review-g60713-d224953-Reviews-Hotel_Zephyr_San_Francisco-San_Francisco_California.html",
+        { "input": "https://www.tripadvisor.com/Hotel_Review-g60713-d224953-Reviews-Four_Seasons_Hotel_San_Francisco-San_Francisco_California.html",
           "expect": { "kind": "lodging", "nonEmpty": ["title"] } },
-        { "input": "https://www.tripadvisor.com/Restaurant_Review-g60713-d3539600-Reviews-Gary_Danko-San_Francisco.html",
+        { "input": "https://www.tripadvisor.com/Restaurant_Review-g187791-d3539600-Reviews-Un_Posto_Per_Mangiare-Rome_Lazio.html",
           "expect": { "kind": "food", "nonEmpty": ["title"] } }
       ]
     },

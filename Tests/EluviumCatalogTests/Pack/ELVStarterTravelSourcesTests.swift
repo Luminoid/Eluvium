@@ -557,6 +557,29 @@ struct ELVStarterTravelSourcesTests {
         #expect(fetched.fields["difficulty"] == .text("Moderate"))
     }
 
+    @Test
+    func `AllTrails reads its LocalBusiness place node for the pin, address, and rating`() throws {
+        // AllTrails types its trail node LocalBusiness, so the inline
+        // TouristAttraction rating rung misses and the place node fills in.
+        let pack = try loaded()
+        let source = try #require(pack.source(withId: "alltrails.trail"))
+        let html = """
+        <html><head><meta property="og:title" content="Hidden Falls Trail | AllTrails">
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Hidden Falls Trail",
+        "address":{"@type":"PostalAddress","addressLocality":"Moose","addressRegion":"Wyoming","addressCountry":"United States"},
+        "geo":{"@type":"GeoCoordinates","latitude":43.7598,"longitude":-110.7318},
+        "aggregateRating":{"@type":"AggregateRating","ratingValue":4.7,"reviewCount":1200}}</script>
+        </head><body></body></html>
+        """
+        let url = try #require(URL(string: "https://www.alltrails.com/trail/us/wyoming/hidden-falls-trail"))
+        let recognition = try #require(pack.registry.recognize(url))
+        let record = ELVAssembler.assemble(source: source, context: ELVExtractionContext(url: url, params: recognition.params, document: ELVDocument(html: html)))
+        #expect(record.fields["title"] == .text("Hidden Falls Trail"))
+        #expect(record.fields["address"] == .text("Moose, Wyoming, United States"))
+        #expect(record.fields["geo"] == .geo(latitude: 43.7598, longitude: -110.7318))
+        #expect(record.fields["rating"] == .rating(value: 4.7, scale: 0 ... 5))
+    }
+
     // MARK: - Xiaohongshu
 
     @Test
