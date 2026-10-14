@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A generic floor's dom step now runs (when a renderer is injected and its `when` admits the shared fetch's outcome), so a refused or title-less page can still render.
 - `ELVGeocodedPlace.localitySubtitle` falls back to the new `county` (the placemark's sub-administrative area) when a place has no city, so a lake reads "Teton County, WY" instead of "WY".
 - Travel sources: Google Maps sources match every Google ccTLD and read the place page's metas in their own step; lodging, tour, and review sources (Vrbo excepted, which stays URL-only) fetch their page and read its place node, so a page's name replaces the URL slug in their label; Flighty titles drop the og:title's "Track " lead and records carry both airport time zones; Booking `/Share-` links expand instead of falling to the OpenGraph floor, as do Expedia's app share links (`expe.onelink.me`); Expedia records read the town as `locality`, and lodging sources read `startDate`/`endDate` stay dates.
+- `eluvium curate` output opts out of SwiftLint and SwiftFormat, so a pre-commit hook that lints staged files by path accepts the one-line pack literal.
 
 ### Fixed
 
