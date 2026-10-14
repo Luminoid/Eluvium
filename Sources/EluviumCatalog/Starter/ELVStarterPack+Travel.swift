@@ -56,7 +56,8 @@
 /// `trail.statsFromText@2` trio. Komoot authors `trail` now: a Komoot tour
 /// is a route like an AllTrails trail, and `hike` was a TripDays-era label
 /// no other source used. Lodging: `lodgingDates` rides all seven sources
-/// (Hotels.com's `chkin`/`chkout` joined the fragment; Hostelworld's
+/// (Hotels.com's `chkin`/`chkout` and the Expedia group's `startDate`/
+/// `endDate` joined the fragment; Hostelworld's
 /// `from`/`to` stay inline on that source alone — generic names that mean
 /// other things on other hosts, so they never enter the shared ladder even
 /// though the yyyy-MM-dd coercion would reject most non-dates), Airbnb's
@@ -137,11 +138,11 @@ let starterTravelMapsJSON = """
       "id": "shortlinks.travel",
       "title": "Travel short links",
       "kind": "link",
-      "match": { "host": ["maps.app.goo.gl", "goo.gl", "g.co", "maps.apple", "yelp.to", "abnb.me", "gyg.me"], "path": "/**", "priority": 90 },
+      "match": { "host": ["maps.app.goo.gl", "goo.gl", "g.co", "maps.apple", "yelp.to", "abnb.me", "gyg.me", "expe.onelink.me"], "path": "/**", "priority": 90 },
       "resolvesVia": "shortlink.expand",
       "previewAs": {
         "maps.app.goo.gl": "gmaps.place", "goo.gl": "gmaps.place", "g.co": "gmaps.place", "maps.apple": "applemaps.place",
-        "yelp.to": "yelp.review", "abnb.me": "airbnb.lodging", "gyg.me": "gyg.tour"
+        "yelp.to": "yelp.review", "abnb.me": "airbnb.lodging", "gyg.me": "gyg.tour", "expe.onelink.me": "expedia.lodging"
       },
       "requires": ["native:shortlink.expand@1"],
       "examples": [
@@ -734,6 +735,10 @@ let starterLodgingToursJSON = """
           { "from": { "native": "jsonld.bestPlaceNode@1" }, "select": "name" },
           { "from": { "paste": "label" } },
           { "from": { "urlRegex": "^[^?#]*/(?:[^/?#]*-[Hh]otels-)?([^/?#.]+)\\\\.h[0-9]+" }, "pipe": ["slugToTitle"] }
+        ]},
+        { "name": "locality", "candidates": [
+          { "from": { "urlQuery": "destination" }, "pipe": [{ "regexReplace": ["\\\\+", " "] }, "collapseWhitespace", "trim"] },
+          { "from": { "urlRegex": "^[^?#]*/([^/?#]+)-[Hh]otels-[^/?#]*\\\\.h[0-9]+" }, "pipe": ["slugToTitle"] }
         ]},
         { "name": "lodgingType", "candidates": [{ "from": { "const": "hotel" } }] }
       ],

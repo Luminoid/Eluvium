@@ -6,6 +6,11 @@ import Testing
 /// ladder that keeps related-trail cards' stats out, and `trail.locality@1`.
 @Suite("Trail stats from page regions")
 struct ELVTrailRegionsTests {
+    /// Registers the ops itself, so the suite passes run alone.
+    init() {
+        ELVNativeOps.registerBuiltins()
+    }
+
     private func stats(
         h1: String? = nil,
         header: String? = nil,
@@ -154,6 +159,13 @@ struct ELVTrailRegionsTests {
         let node = #"{"@type": "LocalBusiness", "name": "Hidden Falls", "geo": {"latitude": 43.76, "longitude": -110.73}, "#
             + #""address": {"addressLocality": "Moose", "addressRegion": "Wyoming", "addressCountry": "United States"}}"#
         #expect(locality(jsonLD: node, region: "wyoming", country: "us") == "Moose, Wyoming, United States")
+        // The template sentence outranks an editor's earlier "near X.", and
+        // the editor's phrase still answers when no template exists.
+        let editorial = "This loop takes you to Point Lobos State Natural Reserve near Monterey. A scenic coastal hike."
+        let templated = #"{"@type": "LocalBusiness", "name": "Cannery Point Trail", "geo": {"latitude": 36.52, "longitude": -121.94}, "#
+            + #""description": "Head out on this 3.2-mile loop trail near Carmel-by-the-Sea, California. Generally considered an easy route."}"#
+        #expect(locality(og: editorial, jsonLD: templated) == "Carmel-by-the-Sea, California")
+        #expect(locality(og: editorial) == "Monterey")
         let street = #"{"@type": "LocalBusiness", "name": "X", "geo": {"latitude": 43.76, "longitude": -110.73}, "address": {"streetAddress": "12 Main St", "addressLocality": "Moose"}}"#
         #expect(locality(jsonLD: street, region: "new-york", country: "us") == "New York, US")
         #expect(locality(region: "wyoming", country: "usa") == nil)

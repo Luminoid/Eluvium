@@ -57,6 +57,12 @@ public struct ELVPipeline: Sendable {
     /// A progress callback fired as each stage begins.
     public typealias ProgressHandler = @Sendable (ELVPipelineStage) -> Void
 
+    /// Fired once when a redirector expands the input, with the offline
+    /// preview of the expanded link (the paste's name and `userLabel` still
+    /// ranked): the place a short link hides, readable while the rest of
+    /// the run fetches.
+    public typealias ExpansionHandler = @Sendable (ELVPreview) -> Void
+
     /// Share sheets hand out `http://` links (Xiaohongshu's xhslink does);
     /// the egress policy is https-only and ATS refuses plain http inside an
     /// app anyway, so the front door upgrades the scheme instead of failing
@@ -69,13 +75,18 @@ public struct ELVPipeline: Sendable {
     /// around it (`ELVPastedInput.leadingText` / `blurb`) and `userLabel`
     /// riding every step's context, so `paste` candidates read the share
     /// name and the stats a blurb spells out, and the label ladder ranks a
-    /// typed label first.
-    public func run(input: ELVPastedInput, userLabel: String? = nil, progress: ProgressHandler? = nil) async -> ELVPipelineRun {
+    /// typed label first. `expanded` hears about a redirector's expansion.
+    public func run(
+        input: ELVPastedInput,
+        userLabel: String? = nil,
+        progress: ProgressHandler? = nil,
+        expanded: ExpansionHandler? = nil
+    ) async -> ELVPipelineRun {
         let started = ContinuousClock.now
         let upgraded = ELVURLPolicy.httpsUpgraded(input.url)
         var trace = ELVRunTrace(inputHost: ELVLogFormat.traceHost(upgraded))
         let paste = ELVPasteContext(input: input, userLabel: userLabel)
-        let result = await run(url: upgraded, chased: false, captured: false, origin: nil, paste: paste, progress: progress, trace: &trace)
+        let result = await run(url: upgraded, chased: false, captured: false, origin: nil, paste: paste, progress: progress, expanded: expanded, trace: &trace)
         return finish(result, trace: trace, started: started, input: upgraded)
     }
 
@@ -117,7 +128,16 @@ public struct ELVPipeline: Sendable {
 
     /// `origin` is the URL a canonical capture rewrote (nil before any
     /// capture): what an `{origin}` step URL fetches.
-    private func run(url inputURL: URL, chased: Bool, captured: Bool, origin: URL?, paste: ELVPasteContext?, progress: ProgressHandler?, trace: inout ELVRunTrace) async -> ELVPipelineResult {
+    private func run(
+        url inputURL: URL,
+        chased: Bool,
+        captured: Bool,
+        origin: URL?,
+        paste: ELVPasteContext?,
+        progress: ProgressHandler?,
+        expanded onExpanded: ExpansionHandler? = nil,
+        trace: inout ELVRunTrace
+    ) async -> ELVPipelineResult {
         progress?(.recognize)
         if let recognition = pack.registry.recognize(inputURL), let matched = pack.source(withId: recognition.sourceId) {
             trace.sourceIds.append(matched.id)
@@ -158,6 +178,7 @@ public struct ELVPipeline: Sendable {
                     chase.notes.append("expanded to \(ELVLogFormat.host(expanded))")
                     trace.steps.append(chase)
                     trace.notes.append("redirector \(matched.id) chased to \(ELVLogFormat.host(expanded))")
+                    onExpanded?(pack.preview(url: ELVURLPolicy.httpsUpgraded(expanded), paste: paste))
                     return await run(url: expanded, chased: true, captured: captured, origin: origin, paste: paste, progress: progress, trace: &trace)
                 } catch is CancellationError {
                     failure = Self.cancelledMarker

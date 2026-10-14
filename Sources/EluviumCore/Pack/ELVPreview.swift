@@ -65,8 +65,13 @@ public extension ELVLoadedPack {
     /// ops. `userLabel` is a label the host's user typed; it wins the label
     /// ladder exactly as it would in a full run.
     func preview(_ input: ELVPastedInput, userLabel: String? = nil) -> ELVPreview {
-        let url = ELVURLPolicy.httpsUpgraded(input.url)
-        let paste = ELVPasteContext(input: input, userLabel: userLabel)
+        preview(url: ELVURLPolicy.httpsUpgraded(input.url), paste: ELVPasteContext(input: input, userLabel: userLabel))
+    }
+
+    /// The preview of an already-upgraded `url` under an existing paste
+    /// context: the pipeline's reading of a link a redirector just expanded,
+    /// with the original paste's name and stats still in play.
+    package func preview(url: URL, paste: ELVPasteContext?) -> ELVPreview {
         guard let recognition = registry.recognize(url), let source = source(withId: recognition.sourceId) else {
             return floorPreview(url: url, paste: paste)
         }

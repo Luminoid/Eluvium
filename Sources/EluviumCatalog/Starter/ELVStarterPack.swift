@@ -22,7 +22,8 @@ import Foundation
 /// knowledge-panel result, not a Maps URL), so even a live token lands on
 /// the OG floor — the host stays recognized as a redirector but carries no
 /// example; `yelp.to` / `gyg.me` / `abnb.me` are per-share Branch links
-/// that expire in weeks, so the corpus carries none of them either.
+/// that expire in weeks, and Expedia's `expe.onelink.me` app shares carry
+/// the sharer's attribution ids, so the corpus carries none of them either.
 /// Share-token examples are gone entirely (owner rulings 2026-08-29 through
 /// 2026-10-12): a token identifies its sharer or unlocks someone's private
 /// content, so `komoot.route`, `shortlinks.media`, and `xiaohongshu.post`
@@ -276,7 +277,8 @@ private let starterPackPrologueJSON = """
           { "from": { "urlQuery": "checkindate" }, "as": "date", "format": "yyyy-MM-dd" },
           { "from": { "urlQuery": "checkin_date" }, "as": "date", "format": "yyyy-MM-dd" },
           { "from": { "urlQuery": "chkin" }, "as": "date", "format": "yyyy-MM-dd" },
-          { "from": { "urlQuery": "ci" }, "as": "date", "format": "yyyy-MM-dd" }
+          { "from": { "urlQuery": "ci" }, "as": "date", "format": "yyyy-MM-dd" },
+          { "from": { "urlQuery": "startDate" }, "as": "date", "format": "yyyy-MM-dd" }
         ]},
         { "name": "checkOut", "candidates": [
           { "from": { "urlQuery": "checkout" }, "as": "date", "format": "yyyy-MM-dd" },
@@ -284,7 +286,8 @@ private let starterPackPrologueJSON = """
           { "from": { "urlQuery": "checkoutdate" }, "as": "date", "format": "yyyy-MM-dd" },
           { "from": { "urlQuery": "checkout_date" }, "as": "date", "format": "yyyy-MM-dd" },
           { "from": { "urlQuery": "chkout" }, "as": "date", "format": "yyyy-MM-dd" },
-          { "from": { "urlQuery": "co" }, "as": "date", "format": "yyyy-MM-dd" }
+          { "from": { "urlQuery": "co" }, "as": "date", "format": "yyyy-MM-dd" },
+          { "from": { "urlQuery": "endDate" }, "as": "date", "format": "yyyy-MM-dd" }
         ]}
       ]
     },

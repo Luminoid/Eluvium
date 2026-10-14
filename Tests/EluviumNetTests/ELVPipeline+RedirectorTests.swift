@@ -1,6 +1,7 @@
 import EluviumCatalog
 import EluviumCore
 import Foundation
+import Synchronization
 import Testing
 @testable import EluviumNet
 
@@ -92,6 +93,26 @@ struct ELVPipelineRedirectorTests {
         }
         #expect(failure == .httpError(status: 404))
         #expect(sourceId == "shortlinks.travel")
+    }
+
+    @Test
+    func `An expansion reports the expanded link's preview once, and a direct link reports none`() async throws {
+        let pipeline = try makePipeline()
+        let short = try #require(URL(string: "https://maps.app.goo.gl/to-pokeapi"))
+        let previews = Mutex<[ELVPreview]>([])
+
+        let run = await pipeline.run(input: ELVPastedInput(url: short), expanded: { preview in previews.withLock { $0.append(preview) } })
+
+        let seen = previews.withLock { $0 }
+        #expect(seen.count == 1)
+        #expect(seen.first?.sourceId == "pokeapi.pokemon")
+        #expect(seen.first?.record.externalId == "25")
+        #expect(seen.first?.pending.contains(.fetch) == true)
+        #expect(run.record?.fields["title"] == .text("pikachu"))
+
+        let direct = try #require(URL(string: "https://pokeapi.co/api/v2/pokemon/25"))
+        _ = await pipeline.run(input: ELVPastedInput(url: direct), expanded: { preview in previews.withLock { $0.append(preview) } })
+        #expect(previews.withLock { $0.count } == 1)
     }
 
     @Test

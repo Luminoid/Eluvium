@@ -52,6 +52,7 @@ struct ELVStarterTravelPreviewTests {
             ("https://www.hertz.com/rentacar/reservation/", "Hertz"),
             ("https://gyg.me/AbCd123", "GetYourGuide"),
             ("https://yelp.to/AbC123", "Yelp"),
+            ("https://expe.onelink.me/hnLd/abc1234x", "Expedia"),
             ("https://maps.app.goo.gl/372N2pn6HcSTEA4w6?g_st=ic", "Google Maps"),
             ("https://www.example.org/hotel/zephyr", "example.org"),
             ("flighty://flight/UA123", "UA123"),

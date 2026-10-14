@@ -133,6 +133,7 @@ struct ELVStarterTravelSourcesTests {
         #expect(try recognized("https://www.xiaohongshu.com/explore/64f1c2e3000000001e02a1b5") == "xiaohongshu.post")
         #expect(try recognized("https://yelp.to/AbC123") == "shortlinks.travel")
         #expect(try recognized("https://abnb.me/AbCd1234") == "shortlinks.travel")
+        #expect(try recognized("https://expe.onelink.me/hnLd/abc1234x") == "shortlinks.travel")
     }
 
     // MARK: - Google Maps
@@ -275,6 +276,22 @@ struct ELVStarterTravelSourcesTests {
         let pack = try loaded()
         let redirector = try #require(pack.pack.sources.first { $0.id == "booking.share" })
         #expect(redirector.previewAs == ["booking.com": "booking.lodging"])
+    }
+
+    @Test
+    func `The Expedia hotel URL an app share expands to names the hotel, its town, and the stay`() throws {
+        let page = try assemble(
+            "https://www.expedia.com/Jackson-Hole-Hotels-Cowboy-Village-Resort.h894154.Hotel-Information"
+                + "?destination=Jackson+Hole%2C+Wyoming%2C+United+States+of+America&startDate=2026-07-04&endDate=2026-07-08"
+        )
+        #expect(page.fields["title"] == .text("Cowboy Village Resort"))
+        #expect(page.externalId == "894154")
+        #expect(page.fields["locality"] == .text("Jackson Hole, Wyoming, United States of America"))
+        #expect(utcDay(page.fields["checkIn"]) == DateComponents(year: 2026, month: 7, day: 4))
+        #expect(utcDay(page.fields["checkOut"]) == DateComponents(year: 2026, month: 7, day: 8))
+        // Without the query, the slug's town stands in.
+        let bare = try assemble("https://www.expedia.com/Jackson-Hole-Hotels-Cowboy-Village-Resort.h894154.Hotel-Information")
+        #expect(bare.fields["locality"] == .text("Jackson Hole"))
     }
 
     @Test

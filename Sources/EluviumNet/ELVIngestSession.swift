@@ -77,8 +77,14 @@ public actor ELVIngestSession {
     /// blurb and `userLabel` to the canonical URL: two pastes of one link
     /// with different blurbs are different inputs (one may carry stats the
     /// other lacks), while a preview and the post-save enrich of the same
-    /// paste still share one run.
-    public func ingest(input: ELVPastedInput, userLabel: String? = nil, progress: ELVPipeline.ProgressHandler? = nil) async -> ELVPipelineRun {
+    /// paste still share one run. `expanded`, like `progress`, reaches only
+    /// the call that mints the run.
+    public func ingest(
+        input: ELVPastedInput,
+        userLabel: String? = nil,
+        progress: ELVPipeline.ProgressHandler? = nil,
+        expanded: ELVPipeline.ExpansionHandler? = nil
+    ) async -> ELVPipelineRun {
         let url = ELVURLPolicy.httpsUpgraded(input.url)
         let key = cacheKey(for: url, input: input, userLabel: userLabel)
         if var cached = cache[key] {
@@ -87,7 +93,7 @@ public actor ELVIngestSession {
             return cached
         }
         if let running = inFlight[key] { return await running.value }
-        return await mintTask(input: input, userLabel: userLabel, key: key, progress: progress).value
+        return await mintTask(input: input, userLabel: userLabel, key: key, progress: progress, expanded: expanded).value
     }
 
     /// The offline preview of `input` (`ELVLoadedPack.preview`): synchronous
@@ -112,10 +118,16 @@ public actor ELVIngestSession {
     /// check-then-insert atomic (`ingest` reaches here without suspending);
     /// the minted task runs the uncached pipeline, pins a pinnable result,
     /// and clears its own slot on the way out.
-    private func mintTask(input: ELVPastedInput, userLabel: String?, key: String, progress: ELVPipeline.ProgressHandler?) -> Task<ELVPipelineRun, Never> {
+    private func mintTask(
+        input: ELVPastedInput,
+        userLabel: String?,
+        key: String,
+        progress: ELVPipeline.ProgressHandler?,
+        expanded: ELVPipeline.ExpansionHandler?
+    ) -> Task<ELVPipelineRun, Never> {
         let minted = generation
         let task = Task { [pipeline, weak self] in
-            let result = await pipeline.run(input: input, userLabel: userLabel, progress: progress)
+            let result = await pipeline.run(input: input, userLabel: userLabel, progress: progress, expanded: expanded)
             await self?.finish(key: key, mintedIn: minted, result: result)
             return result
         }

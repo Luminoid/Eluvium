@@ -165,18 +165,22 @@ extension ELVNativeOps {
             if let duration = merged.duration { outputs["duration"] = .text(duration) }
             return outputs
         }
-        // The trail's own locality, finest first: a "…trail near Palo Alto,
-        // California." sentence in the og or plain description or the place
-        // node's own description (AllTrails' og:description can lead with
-        // fee boilerplate while the node keeps the template sentence), then
-        // the node's digit-free postal address (a street-bearing address is
-        // not a locality), then the URL path's region seed ("Wyoming, US"
-        // from `region` + a two-letter `country`).
+        // The trail's own locality, finest first: the site's template
+        // sentence ("…0.9-mile out-and-back trail near Palo Alto,
+        // California.") in the og or plain description or the place node's
+        // own description, then any other "near X." in the same order
+        // (AllTrails' og:description can lead with fee boilerplate or an
+        // editor's "…reserve near Monterey." while the node keeps the
+        // template), then the node's digit-free postal address (a
+        // street-bearing address is not a locality), then the URL path's
+        // region seed ("Wyoming, US" from `region` + a two-letter `country`).
         register("trail.locality", version: 1) { input, context in
             let document = context.document
             let node = ELVJSONLDPlaceNode.best(in: document.jsonLDNodes)?.raw
             let blurbs = [document.metas["og:description"], document.metas["description"], node.flatMap { ELVJSONLDPlaceNode.asString($0["description"]) }]
-            if let near = blurbs.lazy.compactMap({ $0.flatMap(nearLocality(in:)) }).first {
+                .compactMap(\.self)
+            if let near = blurbs.lazy.compactMap({ nearLocality(in: $0, templateOnly: true) }).first
+                ?? blurbs.lazy.compactMap({ nearLocality(in: $0) }).first {
                 return ["locality": .text(near)]
             }
             if let address = node.flatMap({ ELVJSONLDPlaceNode.addressString(from: $0["address"]) }),
@@ -198,13 +202,21 @@ extension ELVNativeOps {
     // are fine" is prose, not a locality.
     // swiftlint:disable:next force_try
     private static let nearLocalityRegex = try! NSRegularExpression(pattern: "\\b[Nn]ear\\s+(\\p{Lu}[^.!\\n]{1,79}?)\\s*[.!\\n]")
+    // The same phrase led by the template's distance ("this 3.2-mile loop
+    // trail near …"), so an editor's earlier "near X." can't outrank it.
+    // swiftlint:disable:next force_try
+    private static let templateNearLocalityRegex = try! NSRegularExpression(
+        pattern: "\\b\\d+(?:[.,]\\d+)?-(?:mile|kilometer|km)\\b[^.!\\n]{0,60}?\\b[Nn]ear\\s+(\\p{Lu}[^.!\\n]{1,79}?)\\s*[.!\\n]"
+    )
 
     /// "Experience this 0.9-mile out-and-back trail near Palo Alto,
-    /// California." → "Palo Alto, California". Bounded by the pattern itself
-    /// (an 80-character lazy run between fixed delimiters).
-    static func nearLocality(in text: String) -> String? {
+    /// California." → "Palo Alto, California". `templateOnly` takes only a
+    /// phrase led by the template's distance. Bounded by the pattern itself
+    /// (fixed delimiters around lazy runs of at most 60 and 80 characters).
+    static func nearLocality(in text: String, templateOnly: Bool = false) -> String? {
         let bounded = String(text.prefix(4096))
-        guard let match = nearLocalityRegex.firstMatch(in: bounded, range: NSRange(bounded.startIndex..., in: bounded)),
+        let regex = templateOnly ? templateNearLocalityRegex : nearLocalityRegex
+        guard let match = regex.firstMatch(in: bounded, range: NSRange(bounded.startIndex..., in: bounded)),
               match.numberOfRanges >= 2, let range = Range(match.range(at: 1), in: bounded)
         else { return nil }
         let locality = bounded[range].trimmingCharacters(in: .whitespacesAndNewlines)
